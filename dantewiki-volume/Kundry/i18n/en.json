@@ -1,0 +1,13 @@
+{
+  "@metadata": {
+    "authors": ["Clemens H. Cap"]
+  },
+  "kundry-extensionname": "Kundry",
+  "kundry-desc": "Provides services to referenced media in Dantewiki",
+  "quickupload": "Quick Upload",
+  "group-quickuploadrole": "Role of myextension",
+  "group-quickuploadrole-member": "Member of role of myextension",
+  "grouppage-quickuploadrole": "{{ns:project}}:Role of myextension",
+  "action-quickupload": "XYZ doing.",
+  "right-quickupload": "to do xyz"
+}

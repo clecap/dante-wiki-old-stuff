@@ -1,0 +1,42 @@
+# mediawiki with mysql for dante
+#
+# Access via "http://localhost:8080"
+#   (or "http://$(docker-machine ip):8080" if using docker-machine)
+#
+#
+#
+version: '3'
+
+services:
+  database:
+    image: mysql
+    volumes:
+     - db_data:/var/lib/mysql
+    restart: 'no'
+    environment:
+      # @see https://phabricator.wikimedia.org/source/mediawiki/browse/master/includes/DefaultSettings.php
+      MYSQL_DATABASE: my_wiki
+      MYSQL_USER: wikiuser
+      MYSQL_PASSWORD: example
+      
+      
+  mediawiki:
+    image: cleca/dante
+# restart could be unless-stopped   as well    
+    restart: 'no'
+    ports:
+      - 8080:80
+    links:
+      - database
+    volumes:
+      - /var/www/html/images
+      # After initial setup, download LocalSettings.php to the same directory as
+      # this yaml and uncomment the following line and use compose to restart
+      # the mediawiki service
+      # - ./LocalSettings.php:/var/www/html/LocalSettings.php
+  
+      
+volumes:      
+  db_data: {}
+
+      

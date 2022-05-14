@@ -1,0 +1,15 @@
+{
+  "name": "kundry",
+  "version": "1.0.0",
+  "description": "### Peek into a reference",
+  "main": "kundry.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "idb-keyval": "^6.0.3",
+    "pdfjs-dist": "^2.10.377"
+  }
+}

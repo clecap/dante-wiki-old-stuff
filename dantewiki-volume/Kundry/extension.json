@@ -1,0 +1,44 @@
+{
+  "name":              "Kundry",
+  "author":            ["Clemens H. Cap"],  
+  "descriptionmsg":    "kundry-desc",
+  "url":               "http://github.com/clecap/Kundry",
+  "namemsg":           "kundry-extensionname",
+  "license-name":      "AGPL-3.0-only",
+  "type":              "specialpage",
+  "MessagesDirs":      {"Kundry": ["i18n"]},  
+  "ExtensionMessagesFiles": {"KundryAlias": "Kundry.alias.php"},
+  "requires": { "MediaWiki": ">= 1.34", "platform": {"php": ">= 7.2"} },
+   "Hooks": {
+      "ParserFirstCallInit":               "Kundry::onParserFirstCallInit",
+      "OutputPageBeforeHTML":              "Kundry::onOutputPageBeforeHTML",
+      "SkinTemplateNavigation::Universal": "Kundry::onSkinTemplateNavigationUniversal",
+      "LinkerMakeExternalLink":            "Kundry::onLinkerMakeExternalLink",
+      "HtmlPageLinkRendererEnd":           "Kundry::onHtmlPageLinkRendererEnd"
+   },
+  "AutoloadClasses": {
+  	 "RestApiExample": "Kundry.php",
+     "Kundry":         "Kundry.php",
+     "QuickUpload":    "QuickUpload.php",
+     "PageDump":       "PageDump.php"
+   },  
+  "ResourceModules": {
+    "ext.kundry": {
+      "scripts":       ["myExtensions/Kundry/kundry.js", "myExtensions/Kundry/common.js" ],
+      "dependencies":  [],
+      "styles":        ["myExtensions/Kundry/kundry.css"]
+    }
+   },
+  "RestRoutes": [
+    {
+      "path": "/examples/v0/echo_path_param/{value_to_echo}",
+      "method": "GET",
+      "class": "RestApiExample"
+    }
+  ],
+  "SpecialPages": {
+    "QuickUpload": {"class": "QuickUpload"},
+    "PageDump":    {"class": "PageDump", "services": ["DBLoadBalancer"] }
+  },
+  "manifest_version": 2
+}

@@ -1,0 +1,13 @@
+{
+  "@metadata": { "authors": []},
+  "treeandmenu-desc": "Adds <code><nowiki>#tree</nowiki></code> and <code><nowiki>#menu</nowiki></code> parser functions to render bullet-lists as collapsible trees or dropdowns. Modification of the TreeAndMenu extension for purposes of the dantewiki project.",
+  "prefs-catus1": "1. Position in category area",
+  "prefs-catus2": "2. Position in category area",
+  "prefs-catus3": "3. Position in category area",
+  "prefs-catus4": "4. Position in category area",
+  "prefs-catus5": "5. Position in category area",
+  "prefs-catus6": "6. Position in category area",
+  "prefs-catus7": "7. Position in category area",
+  "prefs-catus8": "8. Position in category area",
+  "prefs-catus9": "9. Position in category area"
+}

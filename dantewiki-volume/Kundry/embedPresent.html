@@ -1,0 +1,528 @@
+<html>
+<head>
+<style>
+/* Browser reset */
+html, body {margin:0; padding:0; border:0; overflow:hidden;}
+
+/* Color and font theming */
+body                                             {background-color:Cornsilk;} 
+input[type="text"], select                       {background-color:Azure;}                                /* if it has no value set */
+input[type="text"].hasValue, select.hasValue     {background-color:LightPink;}           /* if it has a value set */
+
+#upload-both {background-color:LightPink;} 
+input[type="submit"] {font-weight:bold;background-color:lightblue;}
+select {font-size:12pt;}
+#info-is-not-stored b {color:red;}
+input[readonly="true"] {background-color:MintCream;}
+
+
+body {height:100%;}
+
+label, span {user-select:none;}
+
+
+/* below the min-width fixes the non-shrinkability in felx box due to the defauls, see  https://stackoverflow.com/questions/42421361/input-button-elements-not-shrinking-in-a-flex-container  */ 
+input[type="text"]  {margin-right:10px; min-width:10px;} 
+input[type="radio"] {width:10px;}  
+input[type="radio"] + label {cursor:pointer; margin-right:5px margin-left:-4px;}  
+select {margin-right:10px;}  
+  
+input[type="submit"] {margin:0px 12px 0px 0px; cursor:pointer;}
+
+ 
+/* implement a uniform radius */  
+select, input[type="text"], input[type="submit"] {border-radius:5px;}
+  
+form > div {width:100%; display:inline-block;}  
+
+div label:first-child {width:90px;min-width:90px;max-width:90px;} 
+ 
+label {display:inline-block;margin-left:5px; margin-right:4px; font-family:sans-serif;} 
+
+div.line {display:flex;align-items:center;margin-top:2px;}
+
+/* opt marks the optional divs */
+div.opt {display:none;}
+
+span.clip {cursor:pointer;position:relative;top:-2px;}
+
+/* which upload buttons shall be shown to the user; uses marker class on body element */
+body.not-yet-stored  #upload-document, body.not-yet-stored  #upload-metadata, body.not-yetstored  #upload-both   {display:inline;}
+body.stored  #upload-document, body.stored  #upload-metadata, body.stored  #upload-both                          {display:none;}
+
+/* which information on the status of the meta information shall be shown to the user; uses marker class on body element */
+body.stored  #info-is-stored, body.not-yet-stored  #info-is-not-stored   {display:inline;}
+body.stored  #info-is-not-stored, body.not-yet-stored  #info-is-stored   {display:none;}
+
+
+/* the class marker modified marks all elements which were modified and it marks the body element when any element was modified on the entire page */
+input[type="text"].modified, select.modified {background-color: magenta;}
+body.modified #upload-metadata {display:inline;}
+
+#last-line {margin-top:10px;height:21px;max-height:21px;min-height:21px;}
+
+</style>    
+
+<script src="common.js"></script>
+
+<script>
+  
+var BUF;       // global variable to keep the document data we receive from MASTER  
+var MASTER;    // global variable in which we keep the reference to the MASTER window; if lost due to navigation, MASTER has to recover via name of window
+  
+  
+// helper function which sets in selector element with id=<selName> the value to the selected option <val>
+const SetSelected = (selName, val) => {
+  if (!val || typeof val !="string" || val.trim().length == 0) {console.warn ("kundry.js: SetSelected: improper val: ", val); return;} // we have no value to set, as obtained from the 
+  const query = '#'+selName+' option[value="'+val+'"]'; console.warn (query);
+  ele = document.querySelector (query); 
+  if (ele) {ele.setAttribute ("selected", true); ele.parentNode.classList.add ("hasValue");} else {console.warn ("kundry.js: element not found in SetSelected, query=" + query);}
+};  
+  
+// fill in all the values present in <obj> into our form and make all affected areas visible
+function json2Form (obj) {
+
+  console.log ("json2Form filling in: ", obj);
+  var ele;
+  if (obj.type) {     // if we have type information
+    console.log ("json2Form found type: ", obj.type);                                                                                     
+    ele = document.getElementById ("div-"+obj.type);  if (ele) {ele.style.display="flex";}               // set visibility of the lines according to the type information
+    SetSelected ("type", obj.type); SetSelected ("relevance", obj.relevance); SetSelected ("quality", obj.quality);
+    for (const key in obj) { // for all other keys: set the value in the input field and mark it with a hasValue class
+      if (obj[key].trim().length==0) {console.log ("json2Form found and SKIPPED key: " + key); continue;}  // skip empty strings
+      ele = document.querySelector (`input[name="${key}"]`); if (ele) {console.log ("json2Form found and SET key: " + key); ele.setAttribute ("value", obj[key]); ele.classList.add ("hasValue");} else {console.warn ("json2Form did not find input element for " + key);}
+    }
+  }
+  else {
+    console.warn ("document has no type");
+    for (const key in obj) {
+      if (obj[key].trim().length==0) {continue;}  // skip empty strings 
+      ele = document.querySelector (`input[name="${key}"]`); if (ele) {ele.setAttribute ("value", obj[key]); ele.classList.add ("hasValue");}   // mark element with class as having a value from the server
+      SetSelected ("relevance", obj.relevance); SetSelected ("quality", obj.quality);
+      while ( ele ) { console.log ("json2Form ele", ele);
+        if (ele.tagName == "BODY")  {break;}  // at body, break out of the loop
+        if (ele.classList.contains ("opt")) {ele.style.display="flex"; break;}  // set all parents which are marked with class opt to flex to make them visible
+        ele = ele.parentNode;
+      }
+    }
+  }
+}  
+
+
+// pick up the option selected for property name in a select element  
+function pickUpSelect (name) {
+  var select = document.getElementById (name);
+  var val = select.options[select.selectedIndex].value                            //console.log (val);
+  
+  if (name == "type") {  // only for the type: adjust the div visibilities 
+    document.querySelectorAll (".opt").forEach (ele => ele.style.display="none");
+    var ele = document.getElementById ("div-"+val);                                 //console.log (ele); 
+    if (ele) {ele.style.display="flex";} } 
+  return val;
+}  
+  
+// given a DOM form element, return a JSON picking up all the content defined there
+function form2Json (form) {
+  var obj = {};                                                                                    // object for accumulating all values  
+  form.querySelectorAll (`input[type="text"]`).forEach ( item => {obj[item.name] = item.value;});  // pick up all text elements
+  var type       = pickUpSelect("type");      if (type)      {obj.type      = type;}               // pick up select for type
+  var relevance  = pickUpSelect("relevance"); if (relevance) {obj.relevance = relevance;}          // pick up select for relevance
+  var quality    = pickUpSelect("quality");   if (quality)   {obj.quality   = quality;}            // pick up select for quality
+  return obj;
+}  
+
+
+function clipBoard (e) {
+  var val = e.target.nextElementSibling.value;
+  console.log ("kundry.js: picked: ", val);
+  navigator.clipboard.writeText (val);
+}
+
+// service function for using template elements  
+function temp (divName, ...tempNames)  {
+  var div = document.getElementById (divName);
+  tempNames.forEach ( tmp => { div.appendChild ( document.getElementById (tmp).content.cloneNode(true) ) } );
+};
+
+//////////////////////////////////////////////////// TODO: Chrome dev console complains that this page is in quirks mode. With the HTML5 doctype spec hoiwever, the layout gets broken !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+///// TODO: someone also could come up with the idea of drag-droping something onto THIS window and this should also be taken care of !!!!!!!!!!!!!!!!!!!!!!!!
+
+
+window.onmessage = (e) => {
+  const VERBOSE = true;
+  if (VERBOSE) {console.log ("slave received message: ", e.data);}  
+  MASTER = e.source;             ///////// is this ok here ???                                    // the MASTER always is the event source; when the master navigates away master will recover via name of child window
+  /////////////// TODO: not ALWAYS the sender is the master - CAVE, could also be an extension or a bad page !!!!!!!!!!!!!!!!! 
+  
+  if (e.data == "PARENT_REFRESHING") {  ///////////// DO WE TODO really need this - we already pick up MASTER above.  And: security:  And. check if it is the correct dantewiki version we have  private - public confusion ?!?! 
+    console.warn ("slave was pinged by a navigated master refreshing the connection");
+    MASTER = e.source;} 
+  
+  var url;
+  if (e.data.spec) {                                                  // we received a document buffer from the MASTER
+    if (typeof e.data.spec == "string")  {
+      if (VERBOSE) {console.log ("slave received a string and uses it as url: ", e.data.spec);}
+      url = e.data.spec;}
+    else {
+      if (VERBOSE) {console.log ("slave received a non-string and uses it for ObjectURL : ", e.data.spec);}
+      url = URL.createObjectURL ( new Blob ([e.data.spec], {type: "application/pdf"})); BUF = e.data.spec;}   // set url and keep BUF for later
+    document.getElementById("emb").setAttribute ("src", url+ (e.data.opt ? e.data.opt : "") );  // we may have some options to append for the embedded processor
+  }
+  
+  if (typeof e.data.meta != "undefined") {  // we received meta data, which also might be coming from a meta data update after we stored them
+    if (e.data.meta == false) {             // document is not yet stored in dantewiki and thus has no meta data
+      if (VERBOSE) {console.log ("e.data.meta == false, document not yet in dantewiki");}
+      document.body.classList.add ("not-yet-stored"); document.body.classList.remove ("stored"); 
+    }
+    else { 
+      if (VERBOSE) {console.log ("e.data.meta != false, document is already in dantewiki");}
+      document.body.classList.add ("stored"); document.body.classList.remove ("not-yet-stored"); // set marker on body
+      document.querySelectorAll ('input[type="text"]').forEach ( ele => ele.classList.remove ("modified"));  document.body.classList.remove ("modified");
+      json2Form (e.data.meta);
+     }
+  }
+  
+  if (e.data.message) { // we received a message from the MASTER
+    // alert (e.data.message);
+  }
+};  
+  
+// flag = 1  upload document  flag = 2 upload meta  flag = 3 upload both
+window.sendToMaster = (e, flag) => {
+  e.preventDefault(); e.stopPropagation();                            // prevent page change
+  var obj = form2Json ( document.getElementById ("myForm") );         // get meta data
+  console.log ("sendToMaster: picked up object and sending it to master: ", obj);
+  MASTER.postMessage ( {meta: obj, buf: BUF, flag}, "*"); 
+    // improve the targetOrigin in the postmessages above  ??????????????????? TODO
+};
+
+
+window.pickupQuery = async function pickupQuery ()  {
+  if (window.location.search.trim().length != 0 && window.location.search.indexOf ("=") > 0) { // disregard query portions consisting only of a random number after the ? as well as empty stuff
+    console.log ("found query portion in url: ", window.location.search);
+    var params = new URLSearchParams (window.location.search);
+    var hash   = params.get("hash");
+    var page   = params.get("page");
+    console.log ("pickupQuery found: ", hash, page);
+    
+    var response = await fetch ("/images/"+hash+".pdf"); 
+    var buf      = await response.arrayBuffer();  
+    url = URL.createObjectURL ( new Blob ([buf], {type: "application/pdf"}));                  // set url and keep BUF for later  ///// TODO: more general 
+    
+     var optString =  `#view=FitH` + ( page ? `&page=${page}` : "") ;   // request horizontal fitting in any case and a page if provided
+    
+    document.getElementById("emb").setAttribute ("src", url + optString );  // we may have some options to append for the embedded processor
+  }
+}
+
+
+
+
+
+// called when form is submitted
+window.formSubmit = (e) => {
+  console.log ("form submit was activated");
+  e.preventDefault(); e.stopPropagation();   // we are coordinating the send ourselves because we want to prevent the browser to wait / display subsequent page
+  var obj = form2Json ( document.getElementById ("myForm") );
+  console.log ("object extracted from form is ", obj);
+  console.log ("will sned to MASTER, which is: ", MASTER, MASTER.name, MASTER.location);
+  console.log ("just as a reference, opener is: ", window.opener, window.opener.name, window.opener.location);
+  MASTER.postMessage ({meta: obj, buf: BUF} , "*");    // improve the targetOrigin ??????????????????? TODO
+  //// TODO: problem: how do we know that this target still is the Dantepedia. The user could have navigated away from it for some time already...
+  
+};
+
+
+
+
+var isValidIsbn = function(str) {
+  var sum,  weight,  digit,  check, i;
+  str = str.replace(/[^0-9X]/gi, '');
+  if (str.length != 10 && str.length != 13) {return false;}
+  if (str.length == 13) {
+    sum = 0;
+    for (i = 0; i < 12; i++) { digit = parseInt(str[i]); if (i % 2 == 1) {sum += 3*digit;} else {sum += digit;}  }
+    check = (10 - (sum % 10)) % 10;
+    return (check == str[str.length-1]);
+  }
+  if (str.length == 10) {
+    weight = 10;
+    sum = 0;
+    for (i = 0; i < 9; i++) { digit = parseInt(str[i]);  sum += weight*digit;  weight--;  }
+    check = (11 - (sum % 11)) % 11;
+    if (check == 10) {check = 'X';}
+    return (check == str[str.length-1].toUpperCase());
+    }
+};
+
+
+// we want to have a proper page build-up sequence: only after the embed shows we switch the form to visible
+window.onloadEmbed = (e) => {
+  // console.log ("embed fired onload event");
+  var myForm = document.getElementById ("myForm"); myForm.style.display="block";} 
+  
+</script>    
+  
+</head>
+<body>
+  
+  <!-- in the interest of proper reuse, define some templates -->
+  <template id="tYear">
+    <label title="Year of publication" for="year">Year:</label>    
+    <input title="Year of publication" id="year" name="year" type="text"  maxlength="4" style="width:5ch;" placeholder="2021"   title="Year of publication">
+  </template>
+
+  <template id="tPlace">
+    <label title="Place of publication" for="place">Place:</label>     
+    <input title="Place of publication" id="place" name="place"  type="text"placeholder="Place of publication">
+  </template>
+
+  <template id="tPublisher">
+    <label title="Name of publishing house" for="publisher">Publisher:</label>     
+    <input title="Name of publishing house" id="publisher" name="publisher" type="text"     title="" placeholder="Publishing house">
+  </template>
+  
+  <template id="tHowpublished">
+    <label title="How was this published?" for="howpublished">How:</label>     
+    <input title="How was this published?" id="howpublished" name="howpublished" type="text"     title="" placeholder="How was this published">
+  </template>
+
+  <template id="tEditors">
+    <label title="Name(s) of editors" for="editors">Editors:</label>       
+    <input title="Name(s) of editors" id="editors" name="editors" type="text"     placeholder="First M. Last, seperate: and, protect: {}">
+  </template>
+    
+  <template id="tSeries">
+    <label title="Name of series" for="series">Series:</label>        
+    <input title="Name of series" id="series" name="series" type="text" placeholder="XY Series">
+  </template>
+
+  <template id="tISSN">
+    <label title="ISSN number of the periodical" for="issn">ISSN:</label>        
+    <input title="ISSN number of the periodical" id="issn" name="issn" type="text"  placeholder="ISSN">
+  </template>
+
+  <template id="tISBN">
+    <label title="ISBN number of the book" for="isbn">ISBN:</label>        
+    <input title="ISBN number of the book" id="isbn" name="isbn" type="text"  placeholder="ISBN">
+  </template>
+
+  <template id="tKeywords">
+    <label title="Keywords characterizing the publication" for="keywords" >Keywords:</label> 
+    <input title="Keywords characterizing the publication" id ="keywords" name="keywords"  style="flex-grow;"type="text"  placeholder="Keywords">     
+  </template>
+
+  <template id="tComment">
+    <label title="Some personal comments on the publication" for="comment">Comments:</label> 
+    <input title="Some personal comments on the publication" id="comment" name="comment"   style="flex-grow:1;"type="text"  placeholder="Comments">     
+  </template>
+
+  <template id="tDoi">
+    <label title="DoI, without http: or similar resolution mechanism" for="doi" >DoI:</label>        
+    <input title="DoI, without http: or similar resolution mechanism" doi="doi" name="doi"style="flex-grow:1;" type="text"  placeholder="10.1000/182    no protocol, url or similar">
+  </template>
+
+  <template id="tUrl">
+    <label title="Full Url including http(s) where it can be downloaded; if several, seperate by blanks" for="url">URL:</label>        
+    <input title="Full Url including http(s) where it can be downloaded; if several, seperate by blanks" id="url" name="url"style="flex-grow:1;" type="text"  placeholder="http://host.tld/path  full url; several seperate by blanks">
+  </template>
+
+  <template id="tArxiv">
+    <label title="arXiv number" for="arxiv">arXiv:</label>        
+    <input title="arXiv number" id="arxiv" name="arxiv"type="text"  placeholder="arXiv:2101.00896">
+  </template>
+
+  <template id="tFilename">
+    <label title="Filename for BYOL scenarios" for="filename">Filename:</label>
+    <input title="Filename for BYOL scenarios" id="filename" name="filename"  style="flex-grow:1;"type="text"  readonly="true">
+  </template>
+
+  <template id="tConference">
+    <label title="Name and/or acronym of the conference" for="conference" >Conference:</label>  
+    <input title="Name and/or acronym of the conference" id="conference" name="conference"  style="flex-grow:1;" type="text"   title="Name/acronym of conference" placeholder="Conference name or acronym">  
+  </template>
+
+
+  <template id="tDay">
+    <label title="Day of publication" for="day">Day:</label>                                 
+    <input title="Day of publication" id="day" name="day"    type="text"  maxlength="2" style="width:3ch;" placeholder="01"    title="Day of publication">
+  </template>  
+
+  <template id="tMonth">
+    <label title="Month of publication" for="month">Month:</label>                             
+    <input title="Month of publication" id="month" name="month"   type="text"  maxlength="3" style="width:4ch;" placeholder="Jan"   title="Month of publication">
+  </template>
+
+  <template id="tVolume">
+    <label title="Volume number of publication" for="volume">Vol:</label>                    
+    <input title="Volume number of publication" id="volume"  name="volume"  type="text" maxlength="4" style="width:5ch;" placeholder="34"    title="">
+  </template>
+
+  <template id="tIssue">
+    <label title="Issue number of publication" for="issue">Nr:</label>                      
+    <input title="Issue number of publication"  id="issue" name="issue" type="text"  maxlength="4" style="width:5ch;"placeholder="2"    title="">
+  </template>
+
+  <template id="tPages">  
+    <label title="Page range of publication" for="pages">pp:</label>
+    <input title="Page range of publication" id="pages" name="pages"  type="text"  maxlength="6" style="width:7ch;"placeholder="22-26"    title="">
+  </template>
+
+  <template id="tISSN">
+    <label title="ISSN number of the serial" for="ISSN">ISSN:</label>           
+    <input title="ISSN number of the serial" id="ISSN" name="ISSN" type="text"  placeholder="ISSN">
+  </template>
+
+  <template id="tCollection">
+    <label title="Title or name of the collection" for="collection">Collection:</label>     
+    <input title="Title or name of the collection" id="collection" name="collection" style="flex-grow:1;" type="text"  placeholder="Collection name or title">  
+  </template>
+
+  <template id="tAuthor">
+    <label title="Name of the author(s) in Lastname, Firstname convention" for="authors">Authors:</label>
+    <input title="Name of the author(s) in Lastname, Firstname convention" id="authors" name="authors" style="flex-grow:1;" type="text"   placeholder="Last, First MiddleInitial">
+  </template>
+
+  <template id="tJournal">
+    <label title="Name of the Journal" for="journal">Journal:</label>
+    <input title="Name of the Journal" id="journal" name="journal" style="flex:1 1 0;" placeholder="Journal name" type="text">
+  </template> 
+
+  <template id="tType">
+    <label title="Type fo the publication" for="type">Type:</label>
+    <select name="type" id="type" name="type">
+      <option disabled selected>Select type</option>    
+      <option value="article"       title="Journal article (reviewed). If not reviewed chose preprint or report">Article</option>
+      <option value="preprint"      title="Preprint; article with intent to be published as article">Preprint</option>
+      <option value="report"        title="Technical report, whitepaper or similar">Report</option>
+      <option value="book"          title="Book with a publishing house">Book</option>
+      <option value="booklet"       title="Book without publishing house or strict quality control">Booklet</option>
+      <option value="conference"    title="Conference contribution or proceedings">Conference</option>
+      <option value="collection"    title="Conference contribution">Collection</option>
+      <option value="phd"           title="PhD thesis">PhD Thesis</option>
+      <option value="thesis"        title="Bachelor, master, diploma thesis and similar student works">Other Thesis</option>
+      <option value="manual"        title="Technical manual, instruction">Manual</option>
+      <option value="dante"         title="In a dantepedia or similar personal scientific publishing instrument">Dante</option>   
+      <option value="web"           title="Web or blog page">Web</option>
+      <option value="unpublished"   title="Not openly published">Unpublished</option>
+  </select>
+  </template>
+
+  <template id="tQuality">
+    <label title="Quality of the publication as such" for="quality">Quality:</label>
+    <select id="quality" name="quality">
+      <option value="A+"         title="Exceptional">A+</option>
+      <option disabled></option>    
+      <option value="A"          title="Very good">A</option>
+      <option value="B"          title="Good">B</option>
+      <option value="C"          title="Average">C</option>
+      <option value="D"          title="With significant shortcomings">D</option>
+      <option value="E"          title="Bad">E</option>
+      <option value="F"          title="Failure">F</option>
+      <option disabled></option>    
+      <option value="U"         selected title="Unqualified, no qualification given">U</option>             
+    </select>
+  </template>
+
+  <template id="tRelevance">
+    <label title="Relevance for the author of this Dantepedia" for="relevance">Relevance:</label>
+    <select id="relevance" name="relevance">
+      <option value="A+"           title="Exceptional">A+</option>
+      <option disabled></option>
+      <option value="A"            title="Very high">A</option>
+      <option value="B"            title="High">B</option>
+      <option value="C"            title="Average">C</option>
+      <option value="D"            title="Marginal">D</option>
+      <option value="E"            title="None">E</option>
+      <option value="F"            title="None at all">F</option>
+      <option disabled></option>    
+      <option value="U" selected   title="Unqualified, no qualification given">U</option>             
+    </select>
+  </template>
+
+
+  <template id="tKey">
+    <label title="Key to be used for citation; suggested by system, user may overwrite" for="key">Key:</label><span class="clip" id="keyClip" onclick="clipBoard(event);" title="Click to copy suggested key to clipboard">&#x1f4cb;</span>
+    <input title="Key to be used for citation; suggested by system, user may overwrite" id="key" name="key" type="text" placeholder="Key">
+  </template>
+
+  <template id="tSha">
+    <label title="Hash value of the the content" for="sha">SHA1:</label>
+    <span title="Click to copy hash value to clipboard" class="clip" onclick="clipBoard(event);" id="shaClip">&#x1f4cb;</span>
+    <input title="Hash value of the the content"  id="sha" name="sha" type="text"  maxlength="40" readonly="true"   style="with:41ch;">
+  </template>
+  
+  <template id="tAuthors">
+    <label title="Names of the authors" for="authors">Authors:</label>
+    <input title="Names of the authors" id="authors" name="authors" style="flex:1;" type="text" placeholder="FirstName M. LastName - seperated by and protectd by {}">
+  </template>  
+  
+  <template id="tUniversity">
+    <label title="Name of university" for="university">University:</label>
+    <input title="Name of university" id="university" name="university" style="flex:1;" type="text" placeholder="University">
+  </template>  
+  
+  
+<div id="container" style="display:flex;flex-flow:column;height:100%;padding:0;">  
+
+<div style="flex:1; margin-bottom:0px;">
+  <embed id="emb" style="width:100%;height:100%;border-bottom:8px solid black;" onload="window.onloadEmbed(event);"></embed>
+</div>
+
+<div id="myForm" style="margin:8px 4px 0px 4px;">
+
+<form>
+<div style="display:flex;align-items:center;" id="divAll"></div><script>  temp("divAll", "tAuthors", "tType", "tKey", "tSha") </script>
+
+<div style="display:flex;align-items:center;">
+  <label title="Title of the publication" for="title" >Title:</label>
+  <input title="Title of the publication" id="title" name="title" type="text" style="flex-grow:1;">
+</div>
+
+<div class="line opt"  id="div-article"></div>             <script>  temp("div-article", "tJournal", "tDay", "tMonth", "tYear", "tVolume", "tIssue", "tPages") </script>
+<div class="line opt"  id="div-conference"></div>          <script>  temp("div-conference", "tConference", "tPlace", "tYear", "tPublisher", "tSeries", "tEditors") </script>
+<div class="line opt"  id="div-collection"></div>          <script>  temp("div-collection", "tCollection", "tPlace", "tPublisher", "tEditors", "tSeries", "tYear") </script>
+<div class="line opt"  id="div-book"></div>                <script>  temp("div-book", "tPublisher", "tPlace", "tYear", "tSeries", "tISBN"); </script>
+<div class="line opt"  id="div-booklet"></div>             <script>  temp("div-booklet", "tHowpublished", "tPlace", "tYear", "tSeries", "tISBN"); </script>
+<div class="line opt"  id="div-phd"></div>                 <script>  temp("div-phd", "tUniversity", "tHowpublished", "tPlace", "tYear"); </script>
+<div class="line opt"  id="div-thesis"></div>              <script>  temp("div-thesis", "tUniversity", "tHowpublished", "tPlace", "tYear"); </script>
+<div class="line" id="div-general"></div>                  <script>  temp("div-general", "tQuality", "tRelevance", "tKeywords", "tComment"); </script>
+
+<div class="line" id="div-src"></div><script>  temp("div-src", "tDoi", "tUrl", "tArxiv", "tFilename"); </script>
+
+<div class="line" id="last-line">
+  <label id="info-is-stored">In Wiki</label>
+  <label id="info-is-not-stored"><b>Not</b> in Wiki</label>
+  <input id="upload-document"  type="submit" id="upload-document" value="Upload Document"             onclick="window.sendToMaster(event, 1);"  title="Store the document in your dantewiki">
+  <input id="upload-metadata"  type="submit" id="upload-metadata" value="Upload MetaData"             onclick="window.sendToMaster(event, 2);"  title="Store the new or changed metadata in your dantewiki">
+  <input id="upload-both"      type="submit" id="upload-both"     value="Upload Document & MetaData"  onclick="window.sendToMaster(event, 3);"  title="Store the document and the new or changed metadata in your dantewiki">
+</div></form></div></div>
+
+
+<script>
+
+var nameForPersist = (window.location === window.parent.location ? "window-" : "iframe-"); 
+
+// need this to detect all chances of a moved window for persisting the position
+// 
+// CAVE: TODO: THIS IS TRIGGERED when resizing the iframe ?????????????????????????????????????????????????
+
+if (window.location === window.parent.location) {  // we are running inside of a standalone window and not inside of an iframe
+  document.body.onfocus  = () => { console.log ("onfocus: WILL PERSIST"); window.persistWindow (nameForPersist, window); };
+  document.body.onblur   = () => { console.log ("onblur: WILL PERSIST");  window.persistWindow (nameForPersist, window); };   
+  document.body.onclick  = () => { console.log ("onclick: WILL PERSIST");  window.persistWindow (nameForPersist, window); };
+  window.onresize        = () => {  console.log ("window.onresize: WILL PERSIST"); window.persistWindow (nameForPersist, window); };  
+}
+
+// need this to pickup values from the select elements
+document.getElementById ("type").oninput      = () => { window.pickUpSelect ("type");};
+document.getElementById ("quality").oninput   = () => { window.pickUpSelect ("quality");};
+document.getElementById ("relevance").oninput = () => { window.pickUpSelect ("relevance");};
+
+// need this to pickup any further 
+document.querySelectorAll ('input[type="text"]').forEach ( ele => {ele.oninput = (e) => {e.target.classList.add("modified"); document.body.classList.add ("modified");} } );
+
+window.pickupQuery();
+
+</script></body></html>

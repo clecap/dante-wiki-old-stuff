@@ -1,0 +1,35 @@
+{
+  "name":                  "TreeAndMenuNG",
+  "version":               "1.0, 01-01-2022",
+  "author":                ["Clemens H. Cap", "Aran Dunkley"],
+  "url":                   "http://github/clecap/TreeAndMenuNG",
+  "descriptionmsg":        "treeandmenu-desc",
+  "requires":              {"MediaWiki": ">= 1.35"},
+  "license-name":          "[https://www.gnu.org/licenses/gpl-2.0.html GNU General Public Licence 2.0] or later",
+  "type":                  "parserhook",
+  "Hooks":{
+    "ParserFirstCallInit":   "TreeAndMenu::onParserFirstCallInit",
+    "SkinAfterPortlet":      "TreeAndMenu::onSkinAfterPortlet"
+  },
+  "AutoloadClasses":           {"TreeAndMenu": "TreeAndMenu.php"},
+  "ExtensionMessagesFiles":    {"TreeAndMenuMagic": "TreeAndMenu.i18n.magic.php"},
+  "MessagesDirs":              { "TreeAndMenu": ["i18n"] },
+  "ResourceModules": {
+    "ext.fancytree": {
+      "scripts":       ["fancytree/jquery.fancytree.js", "fancytree/jquery.fancytree.persist.js", "fancytree/jquery.fancytree.mediawiki.js", "fancytree/fancytree.js"],
+     "dependencies":   ["jquery.ui", "jquery.cookie"],
+     "styles":         "fancytree/fancytree.css"
+    },
+    "ext.suckerfish": {
+      "scripts":       ["suckerfish/suckerfish.js"],
+      "dependencies":  ["jquery.client"],
+      "styles":        ["suckerfish/suckerfish.css"]
+    }
+  },
+  "ResourceFileModulePaths": {
+       "localBasePath": "",
+       "remoteExtPath": ""
+  },
+
+  "manifest_version": 2
+}
