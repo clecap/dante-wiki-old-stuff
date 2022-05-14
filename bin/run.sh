@@ -14,10 +14,10 @@ fi
 NAME=$1
 
 ## customize-PRIVATE.sh contains all the settings of the user for all her environment parameters
-source customize-PRIVATE.sh
+source conf/customize-PRIVATE.sh
 
 ## adjust sets some defaults and picks the final parameters from the provided name and the data in customize-PRIVATE.sh
-source adjust.sh
+source lib/adjust.sh
 
 
 # -d   run as daemon in background

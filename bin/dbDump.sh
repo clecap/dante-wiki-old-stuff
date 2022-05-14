@@ -3,17 +3,17 @@
 if [ $# -eq 0 ]; then
     echo "Usage:    ./dbDump.sh  Name-of-Dantewiki  "
     echo "Example:  ./dbDump.sh  mathewiki "
-    echo "Purpose:  Write a full database dump to directory dumps, including time stamp and name into the filename"
+    echo "Purpose:  Write a full database dump to directory dumps, filename includes time stamp and name"
     exit 1
 fi
 
 NAME=$1
 
 ## customize-PRIVATE.sh contains all the settings of the user for all her environment parameters
-source customize-PRIVATE.sh
+source conf/customize-PRIVATE.sh
 
 ## adjust sets some defaults and picks the final parameters from the provided name and the data in customize-PRIVATE.sh
-source adjust.sh
+source lib/adjust.sh
 
 # prevent overwriting an existing dump file
 set -o noclobber

@@ -11,10 +11,10 @@ NAME=$1
 FILENAME=$2
 
 ## customize-PRIVATE.sh contains all the settings of the user for all her environment parameters
-source customize-PRIVATE.sh
+source conf/customize-PRIVATE.sh
 
 ## adjust sets some defaults and picks the final parameters from the provided name and the data in customize-PRIVATE.sh
-source adjust.sh
+source lib/adjust.sh
 
 
 docker exec -i my-mysql-${NAME} mysql -u ${MEDIAWIKI_DB_USER} --password="${MEDIAWIKI_DB_PASSWORD}" < ${FILENAME}

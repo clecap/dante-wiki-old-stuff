@@ -25,28 +25,5 @@ source adjust.sh
 #
 #
 
-
-
-
-
 docker run --name my-phpmyadmin-${NAME} --network mynetwork-${NAME}  -d -e PMA_HOST=my-mysql-private  -p 9090:80 phpmyadmin:5.0
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

@@ -7,9 +7,8 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
-source customize-PRIVATE.sh
-source adjust.sh $1
-
+source conf/customize-PRIVATE.sh
+source lib/adjust.sh $1
 
 echo "  \n"
 echo "The Dantepeida with the name ==**  " $1 "  **== has the following parameter settings:"

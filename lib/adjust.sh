@@ -5,7 +5,7 @@
 #
 
 # load the database of user settings
-source customize-PRIVATE.sh
+source conf/customize-PRIVATE.sh
 
 ## PICK values from the user settings, depending on the names of the site
 MEDIAWIKI_SITE_PROTOCOL=${MEDIAWIKI_SITE_PROTOCOL[$1]}
