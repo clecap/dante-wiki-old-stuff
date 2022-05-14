@@ -1,7 +1,6 @@
 #!/bin/zsh
 #
-# Lists all configured dantepedias
-#
+# List all configured dantepedias
 #
 #
 source customize-PRIVATE.sh

@@ -13,6 +13,8 @@
 
 `run.sh` shell command for runngin images 
 
+`all.sh`   List all configured dantepedias
+
 
 
 
