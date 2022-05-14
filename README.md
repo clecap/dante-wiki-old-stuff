@@ -2,7 +2,7 @@
 
 ## Goal
 
-**Dantewiki** is a personal mediawiki on steroids. It supports a user-friendly exchange of ideas.
+**Dantewiki** is a personal mediawiki on steroids. It supports user-friendly exchange of ideas.
 
 **This repository** is a by-product of my own use of dantewiki as a personal notebook, during which I time and again 
 installed, reinstalled, cleaned up the system and had forgotten what I had done. The repository aims to keep my workflow
