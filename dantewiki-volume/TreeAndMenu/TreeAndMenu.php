@@ -135,13 +135,20 @@ private static function getCatConfig () {
   if ($contentObject ) {                                                                      // IF we have found a content object for this thing
     $parserOutputObject = $contentObject->getParserOutput ($title, null, null, true);         // parse the content object on this page
     $options = array( 'unwrap' =>true, 'wrapperDivClass' => "myWRAPPER" );
-    $code = $parserOutputObject->getText ( $options );  
-    $code = trim ($code);
-    $code = substr ($code, 3, strlen($code)-7);  // remove the leading <p> and the trailing </p> portions
-    // self::debugLog ("\n\n Categories configuration text is: " . $code . "  \n\n");
+    $code    = $parserOutputObject->getText ( $options );  
+        
+    // remove everything beginning with \begin{document}...   and place the rest as source into the format directories
+    $start = strpos ($code, "<jsonobject>");
+    $end   = strpos ($code, "</jsonobject>");
+    $code  = substr ($code, $start, $end);
+///    $code = preg_replace ( '/(^<pre>\s*$)|(<^\/pre>\s*$)/m', "", $code );   // remove <pre> ... </pre> which improves display of page
+    
+    self::debugLog ("\n\n Categories configuration text is: " . $code . "  \n\n");
+    
     $obj = json_decode ($code, true);
     if ($obj == null) { // self::debugLog ("\n\n Categories configuration object could not be parsed  \n\n"); 
-      return "Could not parse MediaWiki:Sidebar/Categories";} 
+      
+      return "Could not parse MediaWiki:Sidebar/Categories - expected a json object";} 
     else {  // self::debugLog ("\n\n Categories configuration object in php is: " . print_r ($obj, true) . "  \n\n");
     return $obj;}
   }   

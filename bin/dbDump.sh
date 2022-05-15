@@ -10,10 +10,10 @@ fi
 NAME=$1
 
 ## customize-PRIVATE.sh contains all the settings of the user for all her environment parameters
-source conf/customize-PRIVATE.sh
+source ../conf/customize-PRIVATE.sh
 
 ## adjust sets some defaults and picks the final parameters from the provided name and the data in customize-PRIVATE.sh
-source lib/adjust.sh
+source ../lib/adjust.sh
 
 # prevent overwriting an existing dump file
 set -o noclobber

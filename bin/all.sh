@@ -3,7 +3,7 @@
 # List all configured dantepedias
 #
 #
-source customize-PRIVATE.sh
+source ../conf/customize-PRIVATE.sh
 
 echo " \n"
 echo "Currently configured dantepedias in this installation are: \n"
