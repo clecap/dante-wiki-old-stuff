@@ -17,6 +17,12 @@ RUN set -eux; \
   apt-get install -y --no-install-recommends imagemagick ghostscript xpdf-utils;\  
   # needed for handling svg 
   apt-get install -y --no-install-recommends librsvg2-bin;\   
+  # we need php-pear as we need pecl for installing the php datastructre extension - which we need in Parsifal for cleaning up the cache
+  # we need php7.4-dev for phpize which we need for pecl install
+  apt-get install -y php7.4-dev php-pear;\
+  # honor an explicit request by pecl:
+  pecl channel-update pecl.php.net;\
+  pecl install ds;    \
   # enable apache modules; disable those in conflict with php (see https://stackoverflow.com/questions/42506956/sudo-a2enmod-php5-6-php-v-still-shows-php-7-01-conflict )
   a2enmod rewrite proxy proxy_http; \      
   a2dismod mpm_prefork mpm_worker mpm_event; \
@@ -50,27 +56,160 @@ RUN set -eux; \
   rm -rf /tmp/* /var/tmp/* ; \
   rm -rf /var/cache/apt/archives/*
 
-# Copy in PHP configuration file local version for our version of PHP; we need this for apache2 and for cli (for the config script of LocalSettings.php)
+
+
+# Copy in PHP configuration file local version for our version of PHP; 
+# we need this for apache2 and for cli (cli for the configuration script of LocalSettings.php)
 COPY mediawiki-php.ini /etc/php/7.4/apache2/conf.d/mediawiki-php.ini
 COPY mediawiki-php.ini /etc/php/7.4/cli/conf.d/mediawiki-php.ini
 
 # Copy in some extensions (especially DynamicPageList3, which proved a bit tricky regarding some aspects)
 COPY DynamicPageList3 /var/www/html/extensions/DynamicPageList3
 
-# Copy in Apache configuration files
+# Copy in Apache configuration files into apache2 directory and patch apache2.conf to have it loaded
 COPY mediawiki-apache2.conf /etc/apache2/
-COPY favicon.ico /var/www/html/favicon.ico
 RUN echo "Include /etc/apache2/mediawiki-apache2.conf" >> /etc/apache2/apache2.conf
 
+COPY favicon.ico /var/www/html/favicon.ico
+
+# copy in an initialization shell command; will be run by bin/run.sh
 COPY initialize.sh /initialize.sh
 RUN chmod 755 /initialize.sh
 
+# copy in some initial content pages for the wiki; will be installed by initialize.sh which will be run by bin/run.sh
 RUN mkdir /opt/initial-contents
 COPY initial-contents/* /opt/initial-contents
 
 # Expose ports of the container to the outside world
 EXPOSE 80 443
 
-# ENTRYPOINT ["/docker-entry.sh"]
+
+
+
+
+##
+## Tex Live portion from https://gitlab.com/islandoftex/images/texlive/-/blob/master/Dockerfile
+##
+
+ENV LANG=C.UTF-8 \
+  LC_ALL=C.UTF-8 \ 
+  # ConTeXt cache can be created on runtime and does not need to increase image size
+  TEXLIVE_INSTALL_NO_CONTEXT_CACHE=1 \ 
+  # As we will not install regular documentation why would we want to install perl docs…
+  NOPERLDOC=1 \ 
+  # The base mirror is one of the mirrors of TUG's historic archive
+  TLHISTMIRRORURL=rsync://texlive.info/historic/systems/texlive \ 
+  # To get the latest packages available we always use the root mirror
+  TLMIRRORURL=http://dante.ctan.org/tex-archive/systems/texlive/tlnet
+
+
+RUN apt-get update && \ 
+  # basic utilities for TeX Live installation
+  apt-get install -y wget rsync unzip git gpg tar xorriso \ 
+  make fontconfig perl default-jre libgetopt-long-descriptive-perl \
+  libdigest-perl-md5-perl libncurses5 libncurses6 \
+  libunicode-linebreak-perl libfile-homedir-perl libyaml-tiny-perl \
+  ghostscript curl python3 python3-pygments && \ 
+  rm -rf /var/lib/apt/lists/*     && \
+  rm -rf /var/cache/apt/          && \ 
+  # bad fix for python handling
+  ln -s /usr/bin/python3 /usr/bin/python
+  
+# do not install documentation files and do not install source files of TeX
+ARG DOCFILES=no
+ARG SRCFILES=no
+
+RUN apt-get update && \
+  # Mark all texlive packages as installed. This enables installing latex-related packages in child images.
+  # Inspired by https://tex.stackexchange.com/a/95373/9075.
+  apt install -qy equivs --no-install-recommends freeglut3 && \
+  mkdir -p /tmp/tl-equivs && \
+  # we need to change into tl-equis to get it working
+  cd /tmp/tl-equivs && \
+  wget -q -O texlive-local http://www.tug.org/texlive/files/debian-equivs-2022-ex.txt && \
+  sed -i "s/2022/9999/" texlive-local && \
+  equivs-build texlive-local && \
+  dpkg -i texlive-local_9999.99999999-1_all.deb && \
+  apt install -qyf && \
+  # reverse the cd command from above and cleanup
+  cd .. && \
+  rm -rf /tmp/tl-equivs && \
+  # save some space
+  apt remove -y --purge equivs    && \
+  apt-get autoremove -qy --purge  && \
+  rm -rf /var/lib/apt/lists/*     && \
+  apt-get clean                   && \
+  rm -rf /var/cache/apt/
+
+RUN echo "Building with documentation: $DOCFILES" && \
+  echo "Building with sources: $SRCFILES" && \
+  # verify vanilla TeX Live installer
+  wget "$TLMIRRORURL/install-tl-unx.tar.gz" && \
+  wget "$TLMIRRORURL/install-tl-unx.tar.gz.sha512" && \
+  wget "$TLMIRRORURL/install-tl-unx.tar.gz.sha512.asc" && \
+  wget https://tug.org/texlive/files/texlive.asc && \
+  gpg --import texlive.asc && \
+  gpg --verify install-tl-unx.tar.gz.sha512.asc install-tl-unx.tar.gz.sha512 && \
+  sha512sum -c install-tl-unx.tar.gz.sha512 && \
+  rm install-tl-unx.tar.gz.sha512* && \
+  rm texlive.asc && \
+  rm -rf /root/.gnupg && \
+  tar xzf install-tl-unx.tar.gz && \
+  rm install-tl-unx.tar.gz && \
+  # actually install TeX Live
+  cd install-tl* && \
+  # choose complete installation
+  echo "selected_scheme scheme-full" > install.profile && \
+  # … but disable documentation and source files when asked to stay slim
+  if [ "$DOCFILES" = "no" ]; then echo "tlpdbopt_install_docfiles 0" >> install.profile && \
+    echo "BUILD: Disabling documentation files"; fi && \
+  if [ "$SRCFILES" = "no" ]; then echo "tlpdbopt_install_srcfiles 0" >> install.profile && \
+    echo "BUILD: Disabling source files"; fi && \
+  echo "tlpdbopt_autobackup 0" >> install.profile && \
+  # furthermore we want our symlinks in the system binary folder to avoid
+  # fiddling around with the PATH
+  echo "tlpdbopt_sys_bin /usr/bin" >> install.profile && \
+  ./install-tl -profile install.profile && \
+  cd .. && rm -rf install-tl* && \
+  # add all relevant binaries to the PATH
+  $(find /usr/local/texlive -name tlmgr) path add
+
+
+## mutool 
+RUN  mkdir /opt/mutools
+COPY mupdf-1.20.3-source /opt/mutools
+
+RUN apt-get update && \
+  apt-get install -y gperf build-essential libgl1-mesa-dev  libglu1.mesa-dev  libx11-dev  libxi-dev libxrandr-dev  && \
+  cd /opt/mutools  && \
+  make && \
+  make install && \
+  make clean && \
+  apt-get install -y nodejs npm && \
+  # clean up 
+  apt-get purge -y build-essential && \
+  apt-get autoremove -qy --purge && \
+  rm -rf /var/lib/apt/lists/* && \
+  apt-get clean           && \
+  rm -rf /var/cache/apt/  && \
+  rm -rf /opt/mutools
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 CMD ["apachectl", "-e", "info", "-D", "FOREGROUND"]

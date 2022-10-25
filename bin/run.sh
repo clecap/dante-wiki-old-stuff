@@ -26,7 +26,6 @@ source ../lib/adjust.sh
 #
 
 ## clean up existing old stuff
-
 echo "CLEANING UP EXISTING CONTAINERS OF THE SAME NAME...\n"
 
 docker container stop my-mysql-${NAME}
@@ -54,21 +53,21 @@ echo "...DONE\n\n"
 # need -t to ensure we keep it running 
 echo "STARTING UP DANTEWIKI my-dante-${NAME}...\n"
 docker run -td --name my-dante-${NAME}  \
--v /Users/cap/DOCKER/dantewiki/dantewiki-volume:/var/www/html/myExtensions     \
---network mynetwork-${NAME}                               \
--p ${MEDIAWIKI_SITE_PORT}:80                                                 \
--e MEDIAWIKI_SITE_SERVER="${MEDIAWIKI_SITE_SERVER}"    \
--e MEDIAWIKI_SITE_NAME="${NAME}"                 \
--e MEDIAWIKI_SITE_LANG="${MEDIAWIKI_SITE_LANG}"                         \
--e MEDIAWIKI_ADMIN_USER="${MEDIAWIKI_ADMIN_USER}"                     \
--e MEDIAWIKI_ADMIN_PASS="${MEDIAWIKI_ADMIN_PASS}"              \
--e MEDIAWIKI_RUN_UPDATE_SCRIPT=true               \
--e MEDIAWIKI_SLEEP=0                              \
--e MEDIAWIKI_DB_HOST=my-mysql-${NAME}                     \
--e MEDIAWIKI_DB_USER=root                         \
--e MEDIAWIKI_DB_PASSWORD="${MYSQL_ROOT_PASSWORD}"   \
--e MEDIAWIKI_DB_TYPE="${MEDIAWIKI_DB_TYPE}"                 \
--e MEDIAWIKI_DB_PORT="${MEDIAWIKI_DB_PORT}"                         \
+  -v /Users/cap/DOCKER/dantewiki/dantewiki-volume:/var/www/html/myExtensions     \
+  --network mynetwork-${NAME}                               \
+  -p ${MEDIAWIKI_SITE_PORT}:80                                                 \
+  -e MEDIAWIKI_SITE_SERVER="${MEDIAWIKI_SITE_SERVER}"    \
+  -e MEDIAWIKI_SITE_NAME="${NAME}"                 \
+  -e MEDIAWIKI_SITE_LANG="${MEDIAWIKI_SITE_LANG}"                         \
+  -e MEDIAWIKI_ADMIN_USER="${MEDIAWIKI_ADMIN_USER}"                     \
+  -e MEDIAWIKI_ADMIN_PASS="${MEDIAWIKI_ADMIN_PASS}"              \
+  -e MEDIAWIKI_RUN_UPDATE_SCRIPT=true               \
+  -e MEDIAWIKI_SLEEP=0                              \
+  -e MEDIAWIKI_DB_HOST=my-mysql-${NAME}                     \
+  -e MEDIAWIKI_DB_USER=root                         \
+  -e MEDIAWIKI_DB_PASSWORD="${MYSQL_ROOT_PASSWORD}"   \
+  -e MEDIAWIKI_DB_TYPE="${MEDIAWIKI_DB_TYPE}"                 \
+  -e MEDIAWIKI_DB_PORT="${MEDIAWIKI_DB_PORT}"                         \
 dantewiki
 echo "...DONE\n\n"
 

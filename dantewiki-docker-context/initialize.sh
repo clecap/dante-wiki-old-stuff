@@ -124,7 +124,7 @@ if [ -e "LocalSettings.php" -a "$MEDIAWIKI_RUN_UPDATE_SCRIPT" = 'true' ]; then
   php maintenance/update.php --quick --conf ./LocalSettings.php
 fi
 
-## Initialize some initial pages for the Mediawiki
+## Initialize some initial pages of the Mediawiki which the docker has copied in into /opt/initial-contents
 cd /opt/initial-contents
 source /opt/initial-contents/populate.sh
 

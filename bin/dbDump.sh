@@ -22,7 +22,7 @@ rm -f dump-errors
 
 # CAVE: below, do not use -t in docker exec to prevent warnings from mysqldump to show up in the sql file
 #       See https://github.com/docker-library/mysql/issues/132  for more details 
-docker exec -i my-mysql-${NAME} mysqldump -u ${MEDIAWIKI_DB_USER} --password=${MEDIAWIKI_DB_PASSWORD} --all-databases > dumps/dump-${NAME}-$(date '+%d-%m-%Y-at-%T').sql 2>dump-errors
+docker exec -i my-mysql-${NAME} mysqldump -u ${MEDIAWIKI_DB_USER} --password=${MEDIAWIKI_DB_PASSWORD} --all-databases > ../dumps/dump-${NAME}-$(date '+%d-%m-%Y-at-%T').sql 2>dump-errors
 
 cat dump-errors
 
