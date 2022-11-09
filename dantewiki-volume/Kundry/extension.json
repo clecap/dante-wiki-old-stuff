@@ -13,6 +13,7 @@
       "ParserFirstCallInit":               "Kundry::onParserFirstCallInit",
       "OutputPageBeforeHTML":              "Kundry::onOutputPageBeforeHTML",
       "SkinTemplateNavigation::Universal": "Kundry::onSkinTemplateNavigationUniversal",
+      "SkinAfterPortlet":                  "Kundry::onSkinAfterPortlet",      
       "LinkerMakeExternalLink":            "Kundry::onLinkerMakeExternalLink",
       "HtmlPageLinkRendererEnd":           "Kundry::onHtmlPageLinkRendererEnd"
    },

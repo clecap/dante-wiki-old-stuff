@@ -15,9 +15,9 @@ services:
     restart: 'no'
     environment:
       # @see https://phabricator.wikimedia.org/source/mediawiki/browse/master/includes/DefaultSettings.php
-      MYSQL_DATABASE: my_wiki
-      MYSQL_USER: wikiuser
-      MYSQL_PASSWORD: example
+      MYSQL_DATABASE:  my_wiki
+      MYSQL_USER:      wikiuser
+      MYSQL_PASSWORD:  example
       
       
   mediawiki:

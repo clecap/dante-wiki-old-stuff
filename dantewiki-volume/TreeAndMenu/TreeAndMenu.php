@@ -1,6 +1,5 @@
 <?php
 
-
 class TreeAndMenu {
   const TREE = 1;
   const MENU = 2;
@@ -16,12 +15,7 @@ private static function get_current_file_url() { return  ( array_key_exists ("HT
 
 
 public static function onSkinAfterPortlet ( $skin, $portlet, &$html ) {
-  global $wgSitename, $wgOut;
-  
- 
-  
-  
-  
+  global $wgSitename, $wgOut;  
   
   $wgOut->addModules  ('ext.fancytree');                                                          // this effectively adds the JS files
   $wgOut->addStyle    (self::get_current_file_url()."fancytree/fancytree.css");                   // we need the style sheet earlier than the module loader would make it available; without this we have a flickering in the site name
@@ -32,36 +26,7 @@ public static function onSkinAfterPortlet ( $skin, $portlet, &$html ) {
 
   if ( in_array ( $portlet,  array ("namespaces", "variants", "views", "cactions",  "lang") ) ) { return true; }   // we do not touch these portlets here, they are not in the sidebar or not used by us - so we EXIT this function
 
-  // INJECT the name of the specific dantepedia   // TODO: THIS probably could go to a different place  /////////////////////////////////// TODO: we might want to place this above the "Areas" in the Sidebar - this is the more natural place to see it there !!!!!!!
-  if ( strcmp ("personal", $portlet) == 0) {
-    $selector = "<select class='personal-wiki-select' onchange='window.selectorChanged(event);' title='Name of the specific dantewiki to distinguish multiple variants. Click to display links to others as registered in MediaWiki:DanteWikis'>";    
-    $configPage = "Dantewikis";                                                                 // name of the MediaWiki:Dantewikis configuration page of this thing
-    $title      = Title::newFromText( $configPage, NS_MEDIAWIKI );                              // build title object for MediaWiki:SidebarTree
-    $wikipage   = new WikiPage ($title);                                                        // get the WikiPage for that title
-    $contentObject = $wikipage->getContent();                                                   // and obtain the content object for that
-    if ($contentObject ) {                                                                      // IF we have found a content object for this thing
-      $parserOutputObject = $contentObject->getParserOutput ($title, null, null, true);         // parse the content object on this page
-      $options = array( 'unwrap' =>true, 'wrapperDivClass' => "myWRAPPER" );
-      $code = $parserOutputObject->getText ( $options );  
-      $code = trim ($code);
-      $code = substr ($code, 3, strlen($code)-7);  // remove the leading <p> and the trailing </p> portions
-      // self::debugLog ("\n\n Dantewikis configuration text is: " . $code . "  \n\n");
-      $arr = json_decode ($code, true);
-      foreach ($arr as $val) {
-        $name  = $val["name"];
-        $class = $val["class"];
-        $base  = $val["base"];
-        $selected = ($name == $wgSitename ? "selected"  : "");
-        $selector .= "<option data-class='$class' data-base='$base' data-name='$name' value='$name' $selected>$name</option>";
-      }
-      $selector .= "</select>";    
-      $html =  $selector . $html;
-      return true;
-    }
-  }
-
-   $html = $html . self::overridePortlet ( $portlet );
-
+  $html = $html . self::overridePortlet ( $portlet );
 
   // the category tree is specified as an array of objects of which there are two variants    {tree: CatName, depth:4}   or   {node: CatName}
   // every object may also have an additional   className   and an additional  style  attribute  to be used for styling the entry
@@ -71,7 +36,10 @@ public static function onSkinAfterPortlet ( $skin, $portlet, &$html ) {
     
     foreach ($catConfig as $obj) {       // iterate all objects in the configuration array
       $style = ( array_key_exists ("style", $obj) ? $obj["style"]: "");
-      if (array_key_exists ("name", $obj))  { $cHtml = $cHtml . "<li>".self::buildLink($obj["name"], $style)."</li>"; }
+      if (array_key_exists ("name", $obj))  {    
+        self::debugLog ("\n\n Formatting link: " . self::buildLink ($obj["name"], $obj["style"]).  "\n\n");        
+        $cHtml = $cHtml . "<li>".self::buildLink($obj["name"], $style)."</li>";
+       }
       if (array_key_exists ("root", $obj))  { 
         $kids  = self::getChildren ($obj["root"]);
 
@@ -87,32 +55,12 @@ public static function onSkinAfterPortlet ( $skin, $portlet, &$html ) {
   return true;
 }
 
-// deprecated 
-/*
-private static function renderHelper ($cat, $depth, $sty) {  // helper function translating the cat/dep/sty preference into 
-  $cat   = trim ($cat);
-  if ( $cat === '') {return "";}  // skip an entry if the name of the category is empty 
-  if ( trim($depth) === '' ) {return "<li>".self::buildLink($cat, $sty)."</li>";}  // depth preference is empty string: render only the given name 
-  
-  // we are still here, so depth was not the empty string  
-  $depth = intval ( trim($depth) );
-
-  $kids  = self::getChildren ($cat);
-  $cHtml = "";
-  foreach ($kids as $key => $value) {$cHtml .= self::renderCatKids ($key, $dep, $color[0] );};     ///// TODO STYLE / color !!!!
-  return $cHtml;
-  
-  
-}
-*/
-
-
-
 
 // if a $configPage exists in MediaWiki namespace, return portlet content according to this page; if not: return 
 private static function overridePortlet ($name) {
   $configPage = "Sidebar/$name";                                                              // name of the MediaWiki:Sidebar$name configuration page of this treelet
   $title      = Title::newFromText( $configPage, NS_MEDIAWIKI );                              // build title object for MediaWiki:SidebarTree
+  if ($title == null) {return;}                                                               // if not found just SILENTLY discard the generation (insetad of crashing completely)
   $wikipage   = new WikiPage ($title);                                                        // get the WikiPage for that title
   $contentObject = $wikipage->getContent();                                                   // and obtain the content object for that
   if ($contentObject ) {                                                                      // IF we have found a content object for this thing
@@ -137,11 +85,13 @@ private static function getCatConfig () {
     $options = array( 'unwrap' =>true, 'wrapperDivClass' => "myWRAPPER" );
     $code    = $parserOutputObject->getText ( $options );  
         
+    self::debugLog ("\n\n Categories configuration text before scanning is: " . $code . "  \n\n");        
+        
     // remove everything beginning with \begin{document}...   and place the rest as source into the format directories
-    $start = strpos ($code, "<jsonobject>");
-    $end   = strpos ($code, "</jsonobject>");
-    $code  = substr ($code, $start, $end);
-///    $code = preg_replace ( '/(^<pre>\s*$)|(<^\/pre>\s*$)/m', "", $code );   // remove <pre> ... </pre> which improves display of page
+    $start = strpos ($code, "<pre>") + 5;
+    $end   = strpos ($code, "</pre>");
+    $code  = substr ($code, $start, $end - $start);
+    $code  = trim   ($code);
     
     self::debugLog ("\n\n Categories configuration text is: " . $code . "  \n\n");
     
@@ -172,8 +122,9 @@ static function debugLog ($text) {if($tmpFile = fopen( "/var/www/html/myExtensio
 // format the $name of a category in an <a> and <span> for fancy tree
 // note: we need the span wrapping in order for the <a> to make it into the tree
 static  function buildLink ($name, $style = "") {
+  global $wgScript; 
   $name = str_replace ("_", " ", $name);          // we get the category names with _ from the DB but we render them without the _ to the tree
-  return "<span ><a style='$style' target='_blank' title='Open category page in new window or tab'  onclick='window.openAsPopup(event);'  href='./Category:".$name."'>".$name."</a></span>";} 
+  return "<span ><a style='$style' target='_blank' title='Open category page in new window or tab'  onclick='window.openAsPopup(event);'  href='".$wgScript."/Category:".$name."'>".$name."</a></span>";} 
 
 
 // $depth <= 0 number of ul's we are still allowed to open
@@ -344,6 +295,8 @@ static function renderCatKids ($name, $depth, $style="") {
     else { $html = preg_replace('|<ul>|', "<ul class=\"$class todo\"$id>", $html, 1); }
     return array($html, 'isHTML' => true,  'noparse' => true );
   }
+
+
 
 
 } // class

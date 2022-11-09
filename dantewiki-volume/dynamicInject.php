@@ -7,10 +7,6 @@ $wgShowSQLErrors = true;
 
 
 
-
-
-
-
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Keep this in only while workign on code !
 error_reporting( -1 );
@@ -22,25 +18,14 @@ $wgParserCacheType = CACHE_NONE;
 $wgCachePages = false;
 opcache_reset();                    ////////////////////////////////////////////  MUST REMOVE THIS ON PRODUCTION SITE, MAKES IT VERY SLOW BUT READS PHP FROm SCRATCH 
 
+// END
 
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+$wgEnableSidebarCache = true;  // default is false
 
 ###
 ### Do some Dantewiki configuration
@@ -119,8 +104,11 @@ wfLoadExtension( 'WikiEditor' );
 // unwanted additional distance between some tree constructions and headers in the sidebar. As a solution we turn off these parser reports.
 $wgEnableParserLimitReporting= false;
 
-// enable subspaces in the MAIN namespace
+// enable subpages in the MAIN namespace
 $wgNamespacesWithSubpages = array( NS_MAIN);
+
+
+$wgRestrictDisplayTitle = false;  // remove the restrictions mediawiki imposes on the use of DISPLAYTITLE 
 
 
 $wgSpamRegex=[];   // this is a private only edit wiki, so we have no spam blocking
@@ -139,6 +127,9 @@ $wgDumpsOnDemandUseDefaultJobQueue=true;
 $wgExtensionDirectory = "/var/www/html/myExtensions/";
 $wgExtensionassetsPath = "$wgScriptPath/myExtensions";
 
+
+
+wfLoadExtension( 'Bread', '/var/www/html/myExtensions/Bread/extension.json' );
 
 wfLoadExtension( 'DumpsOnDemand', '/var/www/html/myExtensions/DumpsOnDemand/extension.json' );
 
@@ -217,8 +208,6 @@ $wgHooks['SidebarBeforeOutput'][] = function ( Skin $skin, &$sidebar ) {
   global $wgOut;
   $revisionId = $wgOut->getRevisionId();
   
-  
-  
   static $keywords = array( 'WHATLINKSHERE', 'RECENTCHANGESLINKED', 'FEEDS', 'CONTRIBUTIONS', 'LOG', 'BLOCKIP', 'EMAILUSER', 'USERRIGHTS', 'UPLOAD', 'SPECIALPAGES', 'PRINT', 'PERMALINK', 'INFO' );
   
   $modifiedToolbox = array();                                // this will be the new toolbox
@@ -228,24 +217,15 @@ $wgHooks['SidebarBeforeOutput'][] = function ( Skin $skin, &$sidebar ) {
  // $artid = $tit->getArticleId();
   // outputpage -> $mParserOptions  liefert ParserOptions;    $redirectTarget liefert Title  , der liefert PageIdentity
   
-  $modifiedToolbox['asadqwf'] = ["text" =>  "RevisionId: ".$revisionId];
- $modifiedToolbox['asadqwfhuhiu'] = ["text" =>  "Timestamp: ".$wgOut->getRevisionTimestamp()];  
-  $modifiedToolbox['asadqwfhuhiuqjjwqwq'] = ["text" =>  "Canonical: ".$wgOut->getCanonicalUrl()];  
-  $modifiedToolbox['asadqwfhuhiuqjjwqwqad'] = ["text" =>  "Title: ".$wgOut->getPageTitle()];     ///// getPageTitle looks like it only is the string variant - need the full object for the ID !!!!!
+  //$modifiedToolbox['asadqwf']  = ["text" =>  "Revision: ".$revisionId];
+  //$modifiedToolbox['asadqwfh'] = ["text" =>  "Time: ".$wgOut->getRevisionTimestamp()];  
+  //$modifiedToolbox['a1']       = ["text" =>  "Canonical: ".$wgOut->getCanonicalUrl()];  
+  // $modifiedToolbox['a2']       = ["text" =>  "Title: ".$wgOut->getPageTitle()];     
   
+  $modifiedToolbox['slow']  = ["text" => "Upload (Form)",   "href" => "/index.php/Special:Upload",       "title" => "Upload using drag and drop with faster Kundry method"];  
+  $modifiedToolbox['quick'] = ["text" => "Upload (Quick)",  "href" => "/index.php/Special:Quick_Upload", "title" => "Upload using drag and drop with faster Kundry method"];
   
-  $modifiedToolbox['slow']  = ["text" => "Form Upload",   "href" => "/index.php/Special:Upload", "title" => "Upload using drag and drop with faster Kundry method"];  
-  $modifiedToolbox['quick'] = ["text" => "Quick Upload",  "href" => "/index.php/Special:Quick_Upload", "title" => "Upload using drag and drop with faster Kundry method"];
-  
-  $modifiedToolbox['pagedump'] = ["text" => "Page Dump",  "href" => "/index.php/Special:PageDump", "title" => "Upload using drag and drop with faster Kundry method"];
-  
-  $modifiedToolbox['back1'] = ["text" => "Backup (pages)",     "href" => "/index.php/Special:Quick_Upload", "title" => "Upload using drag and drop with faster Kundry method"];  
-  $modifiedToolbox['back2'] = ["text" => "Backup (files)",     "href" => "/index.php/Special:Quick_Upload", "title" => "Upload using drag and drop with faster Kundry method"];  
-  $modifiedToolbox['back3'] = ["text" => "Backup (database)",  "href" => "/index.php/Special:Quick_Upload", "title" => "Upload using drag and drop with faster Kundry method"];  
-  
-  $modifiedToolbox['rest1'] = ["text" => "Restore (pages) - PUT INTO QUICKUPLOAD !!!",     "href" => "/index.php/Special:Quick_Upload", "title" => "Upload using drag and drop with faster Kundry method"];  
-  $modifiedToolbox['rest2'] = ["text" => "Restore (files)",     "href" => "/index.php/Special:Quick_Upload", "title" => "Upload using drag and drop with faster Kundry method"];  
-  $modifiedToolbox['rest3'] = ["text" => "Restore (database)",  "href" => "/index.php/Special:Quick_Upload", "title" => "Upload using drag and drop with faster Kundry method"];    
+  $modifiedToolbox['paged'] = ["text" => "Page Dump",  "href" => "/index.php/Special:PageDump", "title" => "Upload using drag and drop with faster Kundry method"];
   
   foreach ( $sidebar['TOOLBOX'] as $key => $value ) {        // iterate existing toolbox links
     if ( strcmp ($key, "print") == 0 )  { continue;}

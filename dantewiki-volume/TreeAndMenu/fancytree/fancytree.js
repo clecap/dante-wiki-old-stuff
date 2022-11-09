@@ -79,6 +79,7 @@ async function delCat (cat) {  const VERBOSE = false;  if (VERBOSE) {console.log
 var catWindow = null;
 
 // function offered to open link in a popup once
+// ??? WHO uses that ?? not clear ??
 window.openAsPopup = function (event) {
   event.preventDefault();
   var obj = getPersistCatWindow ();     // get size and position information, if it was persisted, get the persisted info, else get sane defaults
@@ -203,7 +204,7 @@ var treeRegister = [];
 
 // This can be called again later and any unprepared trees and menus will get prepared - this was done so that trees and menus can work when received via Ajax  such as in a live preview
 window.prepareTAMX = function prepareTAMX (id) {
-  const VERBOSE = true;
+  const VERBOSE = false;
   if (VERBOSE) {console.error ("TreeAndMenu:fancytree.js: prepareTAMX each was called for id=", id);}
   var myTree;
   
@@ -249,11 +250,6 @@ window.prepareTAMX = function prepareTAMX (id) {
 
   return myTree;
 };
-
-
-
-
-
 
 
 function adjustToPersistence (name) {  // get portal area show/hide status from store and adjust it accordingly
@@ -349,23 +345,7 @@ const patchPortletHeaders = () => {
 };
 
 
-window.selectorChanged = async (e) => {
-  console.error (e.target.selectedOptions.item(0));
-  
-  // check if the other wiki has a corresponding page
-  var freshWikiBase = "/index.php/";   // base portion of the url of the other wiki
-  var page          = mw.config.get("wgPageName");          // get name of the page where we are currently
-  var url           = freshWikiBase +  page;
-  console.info (page, url);
-  var response      = await fetch (url);      // for a smooth user experience, first test for page presence and then open the correct page
-  console.log ("response status ", response.status);
-  if (response.status == 404) {
-    window.open ( freshWikiBase+"Main_Page");
-  }
-  else                        {
-    window.open ( freshWikiBase + page);
-  }
-};
+
 
 
 
@@ -401,7 +381,7 @@ window.initializeCatTree = () => {
 var sidebarIsPatched = false;  // used to make patchSidebar idempotent
 
 function patchSidebar () {
-  const VERBOSE = true;    if (VERBOSE) {console.error ("TreeAndMenu: doTreeFinalizer called");}
+  const VERBOSE = false;    if (VERBOSE) {console.error ("TreeAndMenu: doTreeFinalizer called");}
   if (sidebarIsPatched) { console.info ("fancytree.js: sidebar is already patched");return;}       // only do it once, may be called several times - function made idempotent by this
 
 //  logoPatcher ();
@@ -428,9 +408,6 @@ function patchSidebar () {
     patchMagicLinks ();
   });
 };
-
-
-
 
 
 

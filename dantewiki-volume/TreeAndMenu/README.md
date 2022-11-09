@@ -38,6 +38,16 @@ Catus provides a category tree, which displays ...........all cats which are ...
 
 
 
+### Personal Portlet
+
+Configure using the page Mediawiki:Dantewikis.
+
+This page should consist of a json array of objects {name, class, base}
+
+
+
+
+
 
 
 ## TODO Patches:

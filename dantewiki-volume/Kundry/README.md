@@ -1,16 +1,68 @@
-
-
 ## What is Kundry?
 
-Kundry is a helpful service for finding, storing and retrieving reference material in a mediawiki installation.
+Kundry is a service for finding, storing and retrieving reference material in a mediawiki installation and streamlining
+the workflow in mediawiki.
 Developed originally for the Dantewiki project, it assume that it runs inside of a Dantewiki variant of mediawiki,
 however, some aspects can also be useful as an extension to any newer mediawiki installation.
+
+
+
+## Functions provided by Kundry
+
+* Drag and drop of files 
+* Modification of the pipe syntax for providing special new link features 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Standard Case: Open Document
+
+Alice has a document open in any browser window. She drags the URL onto dantepedia. 
+
+1) It is uploaded. 
+2) 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ## Use Cases
 
 This section describes the use cases Kundry currently supports or has on the roadmap for supporting.
-
 
 ### QuickUpload of Files
 
@@ -84,7 +136,6 @@ Alice
 ### Seek a reference
 
 
-
 ### BYOL Bring Your Own Literature
 
 The author refers to something by DoI or by SHA1 or by a collection of metadata sufficiently precise.
@@ -93,19 +144,35 @@ The reader brings her own literature, eg on a USB stick, and makes it available 
 
  
 
-### Format Links
+### Link Modification
 
- ¦ title
+Sometimes a specific opening behavior or hint window or link styling helps in the workflow.
 
-#### Add a title
+`[https://youtu.be/kl7oUK3sMQo?t=4019 Sei mir gegrüßt ¦ title=Ausschnitt aus Lohengrin ¦ target=_blank]`
+ 
+#### Add a specific hint window
+
+Sometimes we want to add a specific hint window to an anchor. This is especially helpful for external links and for 
+links in the sidebar. 
+
+#### Force opening in new tab or new window.
+
+The browser user is aware of the generic behavior of the browser: We can open links in the active window with clicking and
+in a new tab or window on the context menu. The page author can (partially) override this behavior using the target attribute.
+However, this possibility is not normally available in mediawiki, where all links open in the active window. This (mostly) makes 
+sense for an encyclopedia but not always for a dantepedia. Some links should generically no open in the current tab but in a 
+new tab. For example: Cheat sheets and other information which the user will always want to view in addition to the current 
+context without losing the current context.
 
 
+To open a link in a new tab we add a  `¦ target=_blank`
+
+To open a link in a new window we add a  `¦ target=_popup`
 
 
-#### Open in new tab
+To inform the use in advance, Kundry provides a different markup (double underline) for such links.
 
-#### Open in new window
-
+The popup feature, of course, only works when enabled by the browser user.
 
 
 ## Technical Use Cases

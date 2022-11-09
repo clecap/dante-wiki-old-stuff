@@ -14,12 +14,6 @@
 /* used in fancytree.js installPropagate to have a cursor pointer on those folders which we can reasonably click */
 .clickable-icon {cursor:pointer;}
 
-/* to prevent a flickering of the individual patched portal areas, first take them away */
-
-/* .vector-menu-portal.portal.mw-portlet {display:none;} */
-
-
-
 /*************/
 /** SIDEBAR **/
 /*************/
@@ -31,27 +25,6 @@
 #p-logo {display:none;} 
 
 
-
-/* formatting the name of the specific Dantewiki, which we are working in; position for the legacy variant of vector (setting in preferences) */ 
-body.skin-vector-legacy span.personal-wiki-name {position:relative; top: -15px;color:red; font-family:sans-serif; margin-right:1cm;padding:4px 10px 4px 10px; border:1px solid gold; background-color:LightYellow; border-radius:15px; cursor:pointer;}
-
-/* ensure that it is shown in the legacy variant but not shown in the skin variant, where it destroys the optical situation */
-body.skin-vector span.personal-wiki-name {display:none;}  body.skin-vector-legacy span.personal-wiki-name {display:inline !important;}
-
-/*
-.dante-selector {position:relative; left:-120px; top:-15px; padding:16px;}
-*/
-
-.dante-private {color:green;}
-.dante-shared {color:blue;}
-.dante-public {color:red;}
-
-.personal-wiki-select {border-radius:15px; border:1px solid gold; background-color:LightYellow; cursor:pointer; color:red; font-size:1em; font-weight:normal; position: relative; top:-15px;font-family:sans-serif; padding:6px;}
-
-
-
-/* formatting the name of the personal wiki name insertion which we use instead of the logo */
-.personal-wiki-name-logo { width:inherit; display:inline-block; position:fixed; color:red; font-family:sans-serif; box-sizing:border-box; z-index:800; }
 
 
 #p-logo + .mw-portlet h3 {display:block;}   /* override some unwanted thing from vector ?!?!?! */

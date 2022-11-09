@@ -1,32 +1,29 @@
 
+/* Styling of json when embedded into page using <json> */
 .json-table {margin-left:16px;}
 .json-key   {font-weight:bold;}
 .json-value {}
 
+
+
+/*** styling for the rending of the <href> tag ***/
 span[data-hashref]   {cursor:pointer;} 
+span[data-hashref]   {background-color:beige; border-radius:5px; border:2px solid gold;} 
 
-span[data-hashref]   {background-color:gold;} 
-
-/************* TODO reconsider the decoration again - maybe also only on hover !!!!!!!!!!!!!!! */
-
-/*
-a[target="_blank"] {cursor:copy; }
-a[target="_popup"] {cursor:context-menu; }
-*/
-
-a[target="_blank"]:hover  {text-decoration-line:underline; text-decoration-style:double; text-decoration-color:green;}
-a[target="_popup"]:hover  {text-decoration-line:underline; text-decoration-style:double;  text-decoration-color:blue;}
-
-/* we want to have the links in the category tree with a cursor indicating that we are opening in a _blank and so we also have to patch the style of the enclosing element */
-/* #p-catus span.fancytree-title {cursor:copy;}; */
+/* referenced but not found */
+.referencedNotFound {color:red; }
 
 
-/* overflow:auto needed for resize to work */
+/* styling for the rendering of anchors which have been modified using the verticl bar broken pipe symbol */
+a[target="_blank"]:hover  {text-decoration-line:underline; text-decoration-style:double;  text-decoration-color:green;}
+a[target="_popup"]:hover  {text-decoration-line:underline overline; text-decoration-style:double;  text-decoration-color:blue;}
+
+a.kundryOne {border:2px solid grey; border-radius:5px;}
+
+
 
 #kundryContainer {background-color:gold;}
 #kundryHandle    {background-color:gold;}
-
-
 
 /* the container consists of line (consistsing of handle and close) and an iframe  */
 
@@ -40,6 +37,11 @@ a[target="_popup"]:hover  {text-decoration-line:underline; text-decoration-style
 #kundryMeta              {float:right;margin-left:8px; margin-right:8px;}
 
 
+.kundryNotification    {position:fixed; font-family:sans-serif; font-size:0.8125em;
+top:10px; left:200px; width:600px; height:40px; color:#dd3333;
+  border:1px solid blue; border-radius:5px; background-color:white;
+ background-image:linear-gradient(to top,#77c1f6 0,#e8f2f8 1px,#ffffff 100%);
+}
 
 
 /* for the special page */
@@ -60,7 +62,41 @@ a[target="_popup"]:hover  {text-decoration-line:underline; text-decoration-style
 #kundry-file-archive { background-color: gold; font-size:18pt;margin:10px; border-radius:10px;}
 
 
-
+/* styling the dynamiccally appearing drop-zone markup */
 html.dropzone-active  {border:4px solid gold;}
-html {box-sizing: border-box;}
+html                  {box-sizing: border-box;}
+
+
+
+
+/** styling of stuff added to the personal portlet for showing all other dantewikis connected via quick-access to tjis one **/
+
+
+/* formatting the name of the specific Dantewiki, which we are working in; position for the legacy variant of vector (setting in preferences) */ 
+body.skin-vector-legacy span.personal-wiki-name {position:relative; top: -15px;color:red; font-family:sans-serif; margin-right:1cm;padding:4px 10px 4px 10px; border:1px solid gold; background-color:LightYellow; border-radius:15px; cursor:pointer;}
+
+/* ensure that it is shown in the legacy variant but not shown in the skin variant, where it destroys the optical situation */
+body.skin-vector span.personal-wiki-name {display:none;}  body.skin-vector-legacy span.personal-wiki-name {display:inline !important;}
+
+.personal-wiki-select {border-radius:15px; border:1px solid gold; background-color:LightYellow; cursor:pointer; color:red; font-size:1em; font-weight:normal; position: relative; top:-15px;font-family:sans-serif; padding:6px;}
+
+/* formatting the name of the personal wiki name insertion which we use instead of the logo */
+.personal-wiki-name-logo { width:inherit; display:inline-block; position:fixed; color:red; font-family:sans-serif; box-sizing:border-box; z-index:800; }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

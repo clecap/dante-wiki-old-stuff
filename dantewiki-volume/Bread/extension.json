@@ -1,35 +1,15 @@
 {
-	"name": "JSBreadCrumbs",
-	"version": "1.1.0", 
-	"author": [  
-		"Ryan Lane ",
-		"[https://www.mediawiki.org/wiki/User:Cindy.cicalese Cindy Cicalese]",
-		"Kevin Forbes ", " Modified version by Clemens H. Cap - heavily downsized and modified"
-	],
-	"url": "https://www.mediawiki.org/wiki/Extension:JSBreadCrumbs",
-	"description": "adds breadcrumbs",
-	"license-name": "GPL-2.0-or-later",
-	"type": "other",
-	"AutoloadClasses": {"JSBreadCrumbsHooks": "JSBreadCrumbsHooks.php"},
-	"ResourceModules": {
-		"ext.JSBreadCrumbs": {
-			"scripts":      ["JSBreadCrumbs.js"],
-			"dependencies": ["jquery.cookie"]
-		}
-	},
-	"ResourceFileModulePaths": {
-		"localBasePath": "",
-		"remoteExtPath": "JSBreadCrumbs"
-	},
-	"Hooks": {
-		"BeforePageDisplay":       "JSBreadCrumbsHooks::onBeforePageDisplay",
-		"SiteNoticeAfter":         "JSBreadCrumbsHooks::onSiteNoticeAfter"
-	},
-	"DefaultUserOptions": {
-		"jsbreadcrumbs-showcrumbs": true,
-		"jsbreadcrumbs-horizontal": true,
-		"jsbreadcrumbs-maxlength-horizontal": 40,
-		"jsbreadcrumbs-maxlength-vertical": 20
-	},
-	"manifest_version": 2
+  "name":     "Bread",
+  "version":  "1.0", 
+  "author":   ["Clemens H. Cap"],
+  "url":      "",
+  "description": "Compact and fast breadcrumb extension without FOUC, delays and similar problems",
+  "license-name": "GPL-2.0-or-later",
+  "type": "other",
+  "AutoloadClasses": {"BreadCrumbsHooks": "BreadCrumbsHooks.php"},
+  "Hooks": {
+    "BeforePageDisplay":   "BreadCrumbsHooks::onBeforePageDisplay",
+    "SiteNoticeAfter":     "BreadCrumbsHooks::onSiteNoticeAfter"
+  },
+  "manifest_version": 2
 }

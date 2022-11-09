@@ -63,6 +63,8 @@ body.modified #upload-metadata {display:inline;}
 
 </style>    
 
+
+
 <script src="common.js"></script>
 
 <script>
@@ -90,7 +92,8 @@ function json2Form (obj) {
     SetSelected ("type", obj.type); SetSelected ("relevance", obj.relevance); SetSelected ("quality", obj.quality);
     for (const key in obj) { // for all other keys: set the value in the input field and mark it with a hasValue class
       if (obj[key].trim().length==0) {console.log ("json2Form found and SKIPPED key: " + key); continue;}  // skip empty strings
-      ele = document.querySelector (`input[name="${key}"]`); if (ele) {console.log ("json2Form found and SET key: " + key); ele.setAttribute ("value", obj[key]); ele.classList.add ("hasValue");} else {console.warn ("json2Form did not find input element for " + key);}
+      ele = document.querySelector (`input[name="${key}"]`); 
+      if (ele) {console.log ("json2Form found and SET key: " + key + " to value: " + obj[key]); ele.setAttribute ("value", obj[key]); ele.classList.add ("hasValue");} else {console.warn ("json2Form did not find input element for " + key);}
     }
   }
   else {
@@ -149,6 +152,27 @@ function temp (divName, ...tempNames)  {
 ///// TODO: someone also could come up with the idea of drag-droping something onto THIS window and this should also be taken care of !!!!!!!!!!!!!!!!!!!!!!!!
 
 
+
+// circumnavigate a chrome bug described here:  https://stackoverflow.com/questions/2493706/javascript-changing-src-attribute-of-a-embed-tag
+window.createEmbeddedPlayer = function createEmbeddedPlayer (src) {
+  
+  var parent = document.getElementById ("playerParent");
+  parent.innerHTML = '<embed id="emb" style="width:100%;height:100%;border-bottom:8px solid black;" onload="window.onloadEmbed(event);"></embed>';
+  
+  /*
+  var newEmb = document.createElement ("embed");
+  newEmb.setAttribute ("src", src);
+  newEmb.setAttribute ("style", "width:100%;height:100%;border-bottom:8px solid black;");
+  newEmb.setAttribute ("onload", "window.onloadEmbed(event);");
+  console.log (newEmb);
+  var parent = document.getElementById ("playerParent");
+  parent.replaceChild (newEmb, parent.firstChild);
+  
+  return newEmb;*/
+}
+
+
+
 window.onmessage = (e) => {
   const VERBOSE = true;
   if (VERBOSE) {console.log ("slave received message: ", e.data);}  
@@ -167,7 +191,16 @@ window.onmessage = (e) => {
     else {
       if (VERBOSE) {console.log ("slave received a non-string and uses it for ObjectURL : ", e.data.spec);}
       url = URL.createObjectURL ( new Blob ([e.data.spec], {type: "application/pdf"})); BUF = e.data.spec;}   // set url and keep BUF for later
-    document.getElementById("emb").setAttribute ("src", url+ (e.data.opt ? e.data.opt : "") );  // we may have some options to append for the embedded processor
+    
+    window.createEmbeddedPlayer();
+    var emb =  document.getElementById ("emb");
+    console.log ("setting url to " + url);
+    emb.setAttribute ("src",  url);  // we may have some options to append for the embedded processor
+    console.log ("checking attribute now");
+    var att = emb.getAttribute ("src");
+    console.log ("retrieved attribute " + att);
+    
+    
   }
   
   if (typeof e.data.meta != "undefined") {  // we received meta data, which also might be coming from a meta data update after we stored them
@@ -187,17 +220,21 @@ window.onmessage = (e) => {
     // alert (e.data.message);
   }
 };  
+/* NOTE: NOW the slave is already listening */
   
-// flag = 1  upload document  flag = 2 upload meta  flag = 3 upload both
+  
+// send document to master node, flaf determines details: flag = 1  upload document  flag = 2 upload meta  flag = 3 upload both
 window.sendToMaster = (e, flag) => {
   e.preventDefault(); e.stopPropagation();                            // prevent page change
   var obj = form2Json ( document.getElementById ("myForm") );         // get meta data
-  console.log ("sendToMaster: picked up object and sending it to master: ", obj);
-  MASTER.postMessage ( {meta: obj, buf: BUF, flag}, "*"); 
-    // improve the targetOrigin in the postmessages above  ??????????????????? TODO
+  console.log ("embedPresent.html: sendToMaster: picked up the following object and sending it to master: ", obj);
+  MASTER.postMessage ( {meta: obj, buf: BUF, flag}, "*");        // improve the targetOrigin in the postmessages above  ??????????????????? TODO
+  navigator.clipboard.writeText (obj.sha);
+  alert ("clipboard is " + obj.sha);
 };
 
 
+// from the URL we were opened with, IF given, pick up a document location and display it
 window.pickupQuery = async function pickupQuery ()  {
   if (window.location.search.trim().length != 0 && window.location.search.indexOf ("=") > 0) { // disregard query portions consisting only of a random number after the ? as well as empty stuff
     console.log ("found query portion in url: ", window.location.search);
@@ -212,9 +249,12 @@ window.pickupQuery = async function pickupQuery ()  {
     
      var optString =  `#view=FitH` + ( page ? `&page=${page}` : "") ;   // request horizontal fitting in any case and a page if provided
     
+    window.createEmbeddedPlayer ();
     document.getElementById("emb").setAttribute ("src", url + optString );  // we may have some options to append for the embedded processor
   }
-}
+};
+
+
 
 
 
@@ -466,9 +506,9 @@ window.onloadEmbed = (e) => {
   
 <div id="container" style="display:flex;flex-flow:column;height:100%;padding:0;">  
 
-<div style="flex:1; margin-bottom:0px;">
-  <embed id="emb" style="width:100%;height:100%;border-bottom:8px solid black;" onload="window.onloadEmbed(event);"></embed>
-</div>
+
+
+<div style="flex:1; margin-bottom:0px;" id="playerParent"><embed id="emb" style="width:100%;height:100%;border-bottom:8px solid black;" onload="window.onloadEmbed(event);"></embed></div>
 
 <div id="myForm" style="margin:8px 4px 0px 4px;">
 
@@ -494,9 +534,9 @@ window.onloadEmbed = (e) => {
 <div class="line" id="last-line">
   <label id="info-is-stored">In Wiki</label>
   <label id="info-is-not-stored"><b>Not</b> in Wiki</label>
-  <input id="upload-document"  type="submit" id="upload-document" value="Upload Document"             onclick="window.sendToMaster(event, 1);"  title="Store the document in your dantewiki">
-  <input id="upload-metadata"  type="submit" id="upload-metadata" value="Upload MetaData"             onclick="window.sendToMaster(event, 2);"  title="Store the new or changed metadata in your dantewiki">
-  <input id="upload-both"      type="submit" id="upload-both"     value="Upload Document & MetaData"  onclick="window.sendToMaster(event, 3);"  title="Store the document and the new or changed metadata in your dantewiki">
+  <input id="upload-document"  type="submit" id="upload-document" value="Upload Document"             onclick="window.sendToMaster(event, 1);"  title="Store document iyour n dantewiki">
+  <input id="upload-metadata"  type="submit" id="upload-metadata" value="Upload MetaData"             onclick="window.sendToMaster(event, 2);"  title="Store new or changed metadata in your dantewiki">
+  <input id="upload-both"      type="submit" id="upload-both"     value="Upload Document & MetaData"  onclick="window.sendToMaster(event, 3);"  title="Store document and metadata in your dantewiki">
 </div></form></div></div>
 
 

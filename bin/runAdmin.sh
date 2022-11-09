@@ -10,7 +10,6 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
-
 NAME=$1
 
 ## customize-PRIVATE.sh contains all the settings of the user for all her environment parameters

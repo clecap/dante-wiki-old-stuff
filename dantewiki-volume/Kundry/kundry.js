@@ -30,23 +30,19 @@ function printPage (sURL) {
   document.body.appendChild(oHideFrame);
 }
 
-
-
-function dealWithUri (str) {
-  /*
-  if (str.endsWith (".pdf")) {
-    fetch ()
-  
-  }  
-  
-  */
-  
-}
+// duplicate ????
+const mime2ext = {
+  "application/pdf": "pdf"
+};
 
 
 
 (()=>{ // BEGIN SCOPE PROTECTION
 
+
+
+
+console.log ("----------------------------------------------1");
 
 
 // A universal drag-and-drop handler
@@ -83,16 +79,15 @@ const installDropZone = ( dropZone, fileHandler, itemsHandler, protect) => {
 
   dropZone.addEventListener('drop', function(e) { if (VVERBOSE) { console.log ("drop", e.target); }
     dropZone.classList.remove ("dropzone-active");          // remove marking again !
-   /* e.stopPropagation(); */ e.preventDefault();               // do not do the defaults of a drop but do our stuff
+   /* e.stopPropagation(); */ e.preventDefault();           // do not do the defaults of a drop but do our stuff
     
-    console.log (`kundry.js dropzone received ${e.dataTransfer.items.length} ITEMS, ${e.dataTransfer.types.length} TYPES, ${e.dataTransfer.files.length} FILES`);
-    
+    if (VVERBOSE) {console.log (`kundry.js dropzone received ${e.dataTransfer.items.length} ITEMS, ${e.dataTransfer.types.length} TYPES, ${e.dataTransfer.files.length} FILES`);}
+    clearNotify();   // remove notification which mighe be there from earlier drag and drop    
     if (e.dataTransfer.items.length > 1) {if (itemsHandler) {itemsHandler (e.dataTransfer.items);}}
-
     var files = e.dataTransfer.files;
     for (var i=0, file; file=files[i]; i++) {
       if (VERBOSE) {console.log (`  file ${i} is ${file.name} and ${file.kind}`, file);}
-      var name   = file.name; var type = file.type;                                                 // CAVE: file no longer available in onload handler due to asynchonicity, so copy value here
+      var name   = file.name; var type = file.type;                                                 // CAVE: file no longer available in onload handler due to asynchonicity, so MUST copy value here
       var reader = new FileReader();
       reader.onload = function(e2) { if (fileHandler) { fileHandler (e2.target.result, name, type);} }      // if we have a handler, present the result to the handler as an ArrayBuffer
       reader.readAsArrayBuffer(file);                                                               // note: this is MUCH faster than readAsDataURL
@@ -101,37 +96,90 @@ const installDropZone = ( dropZone, fileHandler, itemsHandler, protect) => {
 };
 
 
-
 // DUMMY itemsHandler   TODO: must be expanded to properly handle reasonable drops from several places !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 // 
-// 
 async function itemsHandler (items) {
-  console.log ("kundry:itemsHandler received items: " , items.length, items);
+  console.log ("kundry:itemsHandler received " + items.length + " items ", items);
   for (let i = 0; i < items.length; i++) {
     let item = items[i], type = item.type, kind = item.kind;                            // MUST keep those via let because otherwise they will get lost in a momend where the DataTransfer item is no longer available
     //console.log ("kundry:itemsHandler:  item " + i + " is of kind=" + item.kind + " and type="+item.type, item);
-    item.getAsString ( (str) => { 
+    item.getAsString (  async (str) => { 
       console.log ("kundry:itemsHandler:  item " + i + " is kind=" + kind + " type=" + type + " string=" + str);
-      if (type == "text/uri-list") {dealWithUri (str);} else {console.log ("skipped type=" + type);}
-      
+      if (type == "text/uri-list") {uriHandler (str);} 
+      else {console.log ("skipped type=" + type);}
     } );
   }
-}
+};
+
+
+// handles case when URIs are dropped
+async function uriHandler (str) {
+  console.warn ("kundry.js: uriHandler: will now fetch: " + str);
+
+  try { var response = await fetch (str);} 
+  catch (x) {alert ("Could not load file due to: " +  x + "\nCould be a permission problem with remote server or you are not looking at a PDF URL.");  return;}
+  
+  try {
+    var blob     = await response.blob();
+    var buf      = await blob.arrayBuffer();
+    var hash     = await HASH (buf); 
+    console.log ("got file; type=" + blob.type + " hash=" + hash + " matching extension=" + mime2ext[blob.type]); 
+  }
+  catch (x) {alert ("Could not analyze response due to: " +  x );  return;}       
+    
+  var ext;  
+  var freshMeta = null;  // fresh metadata, if it changes to a value different from null, we will write fresh meta data 
+  if (! (ext=mime2ext[blob.type]) ) {console.error ("kundry: uriHandler: mimetype found but not known here: " + blob.type);} 
+  var fileExistsFlag = await fileExistsOnWiki (hash + "." + ext );
+  if (fileExistsFlag) {
+    console.log ("kundry: uriHandler: the file is known to us" );
+    var meta     = await readMetaData(hash);   // do we have meta data on the file ?
+    if (meta === false) {
+      freshMeta = {"hash": hash};
+    }
+    else {
+      
+    }
+
+    
+  }
+  else {  // file does not exist
+    await uploadToWiki  (buf);  // MISSING TODO: error handling
+  }
+  
+  if (freshMeta !== null) {
+    console.log ("kundry.js: uriHandler uploading fresh meta data");
+    await writeMetaData (freshMeta, hash, ext);
+    
+  }
+  
+  
+  await text2Clipboard (hash);
+  notify ("File is " + (fileExistsFlag ? "known." : "was uploaded." ) + " Hash " + hash + " in clipboard. <a href='/index.php/File:"+hash+"."+ext+"' target='_blank'>Meta data</a>"   );
+  
+  // TODO: missing do we have the file itself ????? - could be on a different place, USB stick etc present .... 
+};
 
 
 // handler for dropped files; expects to receive an array buffer <buf> with the file content
 async function dropHandler (buf, name, mimetype) {
   var hash = await HASH (buf);                  // determine hash of dropped content
+  navigator.clipboard.writeText (hash).then(function() {console.log ("clipboard write worked");}, function() {console.error ("clipboard write failed");});
   console.log ("kundry.js: dropHandler: got buf: ", buf, " and hash ", hash);
-  var meta = await promise2ReadMetaData(hash);         // check Mediawiki for any existing meta data
-  meta.filename     = name;
-  meta.mimetype     = mimetype;
-  meta.suppliedHash = hash;
-  console.log ("kundry.js: dropHandler: existing metadata found: ", meta);
-  openMediumEmbedded (buf, {}, meta);                  // open the browser to display the medium
+
+///////////////////////////////// NO DIFFERNET RUBBISH !!!!!
+
+  var meta = await readMetaData(hash);                // check Mediawiki for any existing meta data
+  if (meta == null) {                                         // not in wiki yet
+    meta = {filename:name, mimetype, suppliedHash:hash};  
+    uploadToWiki  (buf); 
+    writeMetaData (meta, hashKey, ext="pdf")
+  }
+  
+
+  // writeMetaData ({hash:hash}, hash);               
+ ///// openMediumEmbedded (buf, {}, meta);                  // open the browser to display the medium
 }
-
-
 
 
 ///////////////////////////////////////////// ?????????????????????????????????? TODO: adjust this to the correct location
@@ -172,13 +220,11 @@ window.onmessage = async (e) => {  // listen to messages
   
   if (e.data.extension) {  // if extension is set, then it is a message from the content script controlled by our extension
     console.log ("got from extension", e.data);
-    
-    
   }
   
-  
-  
 };
+
+
 
 
 
@@ -189,9 +235,10 @@ function openMediumEmbedded (spec, opt, meta) {
   console.log ("kundry.js: openMediumEmbedded called with content spec=", spec, "opt=", opt, "meta=", meta);
   // was the media window ever positioned or resized - then pick up the respective values
   var {width, height, left, top} = getSize ("drop");     // pick up persisted size and position of "drop" window (we have different stuff in Parsifal for the Categories and here as well displayed media in text via click links)
-  SLAVE = window.open (DOCU_WINDOW_URL + "?" + Math.random(), "fresh", "width="+width+",height="+height);   ////////////////////////   what about removing random ??????????????? TODO
+  
+  SLAVE = window.open (DOCU_WINDOW_URL + "?" + Math.random(), "fresh"+Math.random(), "width="+width+",height="+height);   ////////////////////////   what about removing random ??????????????? TODO
   if ( !SLAVE ) { alert ("If you want to use this feature, please enable popups for this site.");return;}
-  SLAVE.moveTo (left, top);    
+ // SLAVE.moveTo (left, top);    
   opt = getOptionString ( opt );                                                      // adjust the provided opt parameters to a form acceptable to the embedded viewer
   SLAVE.onload = (e) => { 
     console.log ("kundry.js: openMediumEmbedded: SLAVE.onload executing");
@@ -247,68 +294,82 @@ function TEST2 () {
   
 }
 
-
-
-
-
-
-
-
-//////////////// TODO: ??? not clear: do we have to know the mime type for this to work ???
-
-function promise2ReadMetaData (hashKey, ext = "pdf") {
-  const VERBOSE = true;
-  if (VERBOSE) {console.log ("kundry: promise2ReadMetaData: will now promise to check if there is already metadata for hash " + hashKey);}
+// returns a promise resolving to true / false depending on whether the file exists in the mediawiki upload area
+function fileExistsOnWiki (filename) {
   return new Promise ( (resolve, reject) => {
-    var params = {  action: "query",  prop:"revisions", titles: "File:"+hashKey+"."+ext, rvprop:"content", rvslots:"*"};  
+    var xhr = new XMLHttpRequest();
+    xhr.open('HEAD', "/images/"+filename, false);
+    xhr.send();
+    if (xhr.status == "404") { resolve (false); } 
+    else { resolve (true); }
+  });
+}
+
+
+
+// returns a promise to read File:<hashKey>.<ext> metadata
+//   undefined     meta data page is missing
+//   null          meta data page exists but could not extract meta data
+// 
+function readMetaData (hashKey, ext = "pdf") {
+  const VERBOSE = true;
+  if (VERBOSE) {console.log ("kundry: readMetaData: will now promise to check if there is already metadata for hash " + hashKey + " under extension " + ext);}
+  return new Promise ( (resolve, reject) => {
+    var params = { action: "query",  prop:"revisions", titles: "File:"+hashKey+"."+ext, rvprop:"content", rvslots:"*"};  
     var api = new mw.Api();
     api.get(params)
     .done ( data => { 
-      if (VERBOSE) {console.log   ("kundry: promise2ReadMetaData api call replied with: " , data);}
+      if (VERBOSE) {console.log   ("kundry: readMetaData api call replied with: " , data);}
       var meta = data.query.pages;
       var keys = Object.keys (meta);
       var key  = keys[0];
-      if (key == -1) { if (VERBOSE) {console.log ("kundry: looks like page is missing, resolving to falsish");} resolve (false); return; }
+      if (key == -1) { if (VERBOSE) {console.log ("kundry: readMetaData looks like page is missing, resolving to false");} resolve (undefined); return; }
       var revs = meta[key].revisions;
       var rev = revs[0];
       var content = rev.slots.main["*"]; 
-      if (VERBOSE) {console.log   ("kundry: promise2ReadMetaData content found is: " , content);}
+      if (VERBOSE) {console.log   ("kundry: readMetaData text content found is: " , content);}
       var regex = /<json>((.|\s)*)<\/json>/mg;
-      console.log ("***********************************************");
       var resu = regex.exec (content);
-      console.log ("------------------------------- promise2ReadMetaData: regular expression gave: ", resu[0]);
-      console.log ("------------------------------- promise2ReadMetaData: regular expression gave: ", resu[1]);
-      console.log ("------------------------------- promise2ReadMetaData: regular expression gave: ", resu[2]);          
-      
-      var obj = JSON.parse (resu[1]);
-        
-      resolve (obj); })
-    .fail ( data => { console.error ("kundry: promise2ReadMetaData: API call failed: ", data); reject  (data); });
+      if (VERBOSE) {console.log ("kundry: readMetaData: regular expression gave: ", resu);}
+      if (resu == null) {
+        if (VERBOSE) {console.log ("kundry: readMetaData: did not find any json tag in result, resolving to null");} 
+        resolve (null);}
+      else {
+        if (VERBOSE) {console.log ("kundry: readMetaData: supposedly json data found was: ", resu[1]);}
+        try {var obj = JSON.parse (resu[1]);}
+        catch (excep) {
+          console.error ("kundry: readMetaData: could not parse json data, received: " + except);
+          reject (resul[1]);
+        }
+        if (VERBOSE) {console.log ("kundry: readMetaData: reslving to meta data: ", obj);}
+        resolve (obj);
+      }    
+    })
+    .fail ( data => { console.error ("kundry: readMetaData: API call failed: ", data); reject  (data); });
   });    }
 
 
 
-
-// writes the data in object <obj> into the File:<hashKey>.pdf page of dantewiki
+// promises to write the data in object <obj> into the File:<hashKey>.<ext> page of dantewiki
+// form of writing is with a header and then packaged into a <json>...</json> wrapper
 function writeMetaData (obj, hashKey, ext="pdf") {
-  obj.sha = hashKey;                                                                                // inject sha into object which will be written as metadata to dantewiki
-  var text = `==Metadata Store==\n<json>\n${JSON.stringify(obj)}\n</json>\n`;                       // heading and 
+  obj.sha    = hashKey;                                                                                // inject sha into object which will be written as metadata to dantewiki
+  var text   = `==Bibliographic Data==\n<json>\n${JSON.stringify(obj)}\n</json>\n`;                       // heading and 
   var params = { action: 'edit', title: 'File:'+hashKey+"."+ext, text: text, format: 'json'};
-  var api = new mw.Api();
-  api.postWithToken( 'csrf', params )
-    .done(  ( data ) => {
-      console.log ("writeMetaData: API returned when writing metadata: ", data, JSON.stringify (data));
-      if ( mw.config.get("wgNamespaceNumber") == 6 ) { window.location.reload(); }         // if we are on a page in File namespace, we might consider reloading since the page might have changed
-      promise2ReadMetaData(hashKey).then ( meta => {
-        console.log ("writeMetaData sending to SLAVE: ", meta);
-        console.log ("SLAVE IS:" , SLAVE);
-        SLAVE.postMessage ({meta}, "*");
-        console.log ("------------------------------------ psot send");
-      });         // now read metadata again from dantewiki and push them back to the slave to have a check for their correctness and correct colors in the mask //////// TODO "*" verbessern
-    })
-    .fail ( data => {alert ("Writing metadata failed: " + error);});
+  var api    = new mw.Api();
+  return new Promise ( (resolve, reject) => {
+    api.postWithToken( 'csrf', params )
+      .done(  ( data ) => {
+        console.log ("writeMetaData: API returned when writing metadata: ", data, JSON.stringify (data));
+        if ( mw.config.get("wgNamespaceNumber") == 6 ) { window.location.reload(); }         // if we are on a page in File namespace, we might consider reloading since the page might have changed
+        resolve ();
+      })
+      .fail ( data => {
+        var add = "";
+        if (data == "permissiondenied") {add = "\nYou need to be logged in as admin for this to work"}
+        alert ("Writing metadata failed: " + data + add);  reject (); });
+  });
 }
-
 
 
 
@@ -326,14 +387,35 @@ const getOptionString = (opt) => {
 
 
 
-/////////////////////// WHAT IS THIS NEEDED FOR ????
-function hoverKundry (url) {
+
+
+window.selectorChanged = async (e) => {
+  console.error (e.target.selectedOptions.item(0));
+  
+  // check if the other wiki has a corresponding page
+  var freshWikiBase = "/index.php/";   // base portion of the url of the other wiki
+  var page          = mw.config.get("wgPageName");          // get name of the page where we are currently
+  var url           = freshWikiBase +  page;
+  console.info (page, url);
+  var response      = await fetch (url);      // for a smooth user experience, first test for page presence and then open the correct page
+  console.log ("response status ", response.status);
+  if (response.status == 404) {
+    window.open ( freshWikiBase+"Main_Page");
+  }
+  else                        {
+    window.open ( freshWikiBase + page);
+  }
+};
+
+
+
+window.hoverKundy = function hoverKundry (url) {
   var ifra = document.createElement ("iframe");
   ifra.setAttribute ("src", url);
   ifra.setAttribute ("style", "position:absolute; top:30px; left:30px;");
   document.body.appendChild (ifra);
-  
 };
+
 
 // translate mime-type into the extension for the file which we will store
 const MIME2EXT = {
@@ -352,7 +434,7 @@ function pickMetadata (arr, name) { arr.filter ( ele => (ele.name==name) ).map( 
 function sanitizeTitle (name) { return name.replace (/[^a-zA-Z0-9\_\-\ ]/g, " ").substring(0,220); }
 
 
-async function importWikitextToWiki () {}
+
 
 
 async function decompressBlob(blob) {
@@ -380,6 +462,8 @@ async function importToWiki (buf, onResolve, onReject) {
       
     });
 }
+
+
 
 
 async function pushPage () {}
@@ -450,7 +534,6 @@ window.exportPagesBlob = async function exportPagesBlob () {
   var response = await fetch ( "/index.php?title=Special:Export&exportall&action=submit", {method: 'POST', body:" "} );
   var txt = await response.text();
   console.log ("export pages produced: ", txt);
-  
 };
 
 ////////////////// TODO: STILL IMPROVAE THIS by allowing to have some more criteria for selection !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -465,28 +548,16 @@ window.exportPages = async function exportPages () {
   
 };
 
-
-
-
 async function quickDelete () {}
 
 
 
 
-
-
-
-
-
-
-// upload the contents of buffer <buf> under mime-type <mime> (e.g. application/pdf) using filename <filename> to the wiki
+// return a promise to upload the contents of buffer <buf> under mime-type <mime> (e.g. application/pdf) using filename <filename> to the wiki
 // if <filename> is missing, use HASH of the file content
-// due to the non-standard implementation not using promises we here have onResolve and onReject handlers
-async function uploadToWiki (buf, mime, filename, onResolve, onReject) {
-  if (!mime)     { mime = "application/pdf";}                 
-                                   
+async function uploadToWiki (buf, mime = "application/pdf", filename) {     
   if (!filename) { filename = await HASH (buf); } else {
-    filename = removeExtension (filename);
+    filename          = removeExtension (filename);
     var sanitizedName = sanitizeTitle (filename);
     if (sanitizedName != filename) {
       var ok = window.confirm (`The following filename is rejected by Mediawiki:\n\n ${filename}\n\n Will use replacement:\n\n ${sanitizedName}`);
@@ -495,35 +566,43 @@ async function uploadToWiki (buf, mime, filename, onResolve, onReject) {
   }
   filename += "." + MIME2EXT[mime];
   var comment = "Uploaded to dantewiki via Kundry extension";
-  console.log ("uploadToWiki: will now upload " + filename);
+  console.log ("kundry.js: uploadToWiki: will now upload " + filename);
   var param = {filename, format: 'json', comment, errorformat:"plaintext", ignorewarnings: true};         // ignorewarnings needed to avoid error on a reupload attempt
   var	fileInput = $( '<input/>' ).attr( 'type', 'file' ).value = new Blob ([buf], {type: mime});
   var api = new mw.Api();
-  var stuff = api.upload( fileInput, param )
-    .done( data => {
-      console.log ("DONE");
-      console.log ("API upload returned, as object:   ", data, JSON.stringify (data));
-      
-      var usedFilename = ( data.upload && data.upload.filename ? data.upload.filename: "");
-      
-      /*
-      var title  =  (data.upload && data.upload.imageinfo && data.upload.imageinfo.metadata ? pickMetadata  (data.upload.imageinfo.metadata,  "Title")  : "");  ////7  <TODO: where and how do we use this. also CAVE: this is an array !!  see pcikMetadata
-      var author =  (data.upload && data.upload.imageinfo && data.upload.imageinfo.metadata ? pickMetadata  (data.upload.imageinfo.metadata,  "Author") : "");
-      var text   =  (data.upload && data.upload.imageinfo && data.upload.imageinfo.metadata ? pickMetadata  (data.upload.imageinfo.metadata,  "text")   : []);  // full text conversion of the entire document 
-      var pageCount = data.upload.imageinfo.pagecount;
-      var timestamp = data.upload.imageinfo.timestamp;
-      console.log ("API upload returned, stringified: ", JSON.stringify (data));
-      mw.notify( 'The upload was successfull' );
-      console.log( data.upload.filename + ' has sucessfully uploaded.' ); */
-      
-      if (onResolve) { onResolve (usedFilename + " uploaded "); }
-      
-     })
-    .fail( data => {
-      console.error ("API upload returned error: ", JSON.stringify (data), data);
-      if (onReject) {onReject (data);}
-     });
+  
+  return new Promise ( (resolve, reject) => {
+    api.upload( fileInput, param )
+      .done( data => {
+        console.log ("kundry.js: uploadToWiki: returned, as object:   ", data, JSON.stringify (data));
+        var usedFilename = ( data.upload && data.upload.filename ? data.upload.filename: "");
+        
+        /*
+        var title  =  (data.upload && data.upload.imageinfo && data.upload.imageinfo.metadata ? pickMetadata  (data.upload.imageinfo.metadata,  "Title")  : "");  ////7  <TODO: where and how do we use this. also CAVE: this is an array !!  see pcikMetadata
+        var author =  (data.upload && data.upload.imageinfo && data.upload.imageinfo.metadata ? pickMetadata  (data.upload.imageinfo.metadata,  "Author") : "");
+        var text   =  (data.upload && data.upload.imageinfo && data.upload.imageinfo.metadata ? pickMetadata  (data.upload.imageinfo.metadata,  "text")   : []);  // full text conversion of the entire document 
+        var pageCount = data.upload.imageinfo.pagecount;
+        var timestamp = data.upload.imageinfo.timestamp;
+        console.log ("API upload returned, stringified: ", JSON.stringify (data));
+        mw.notify( 'The upload was successfull' );
+        console.log( data.upload.filename + ' has sucessfully uploaded.' ); */
+        
+//        if (onResolve) { onResolve (usedFilename + " uploaded "); }
+        resolve ();
+       })
+      .fail( data => {
+        console.error ("kundry.js: uploadToWiki returned error: ", JSON.stringify (data), data);
+        alert ("Upload error: " + JSON.stringify(data));
+        //if (onReject) {onReject (data);}
+        reject (data);
+       }
+     ); 
+  });
 };
+
+
+
+
 
 
 
@@ -537,7 +616,7 @@ function routeFiles (buf, mime, filename, target) {
   else if (mime == "application/xml+gzip")  {  }
   else if (mime == "application/tar")       {  }
   else if (mime == "application/tar+gzip")  {  }
-  else                                      { uploadToWiki (buf, mime, filename, report, report);}
+  else                                      { uploadToWiki (buf, mime, filename);}
   
   
 }
@@ -555,7 +634,6 @@ function addInfoToKundry (area, info) {
   var textNode = document.createTextNode(info);
   area.appendChild (textNode);
 }
-
 
 
 
@@ -672,6 +750,7 @@ window.initializeHoverLinks = function initializeHoverLinks () { // initialize f
 
 
 // links with a target of "_popup"   should open in a seperate window 
+// WHO calls this where ??? looks like some body does since it works 
 window.initializeTargetLinks = function initializeTargetLinks () {
   //document.querySelectorAll ('a[target="_tab"]').forEach ( ele => {});
 
@@ -682,20 +761,12 @@ window.initializeTargetLinks = function initializeTargetLinks () {
 
 
 // THIS STUFF not yet working - needed it for dual views
-
-
 /*
-
-
 $(".removeTargetClass").find('a[target]').removeAttr("target");
 $(".blankTargetClass").find('a').attr("target","_blank");
 $(".showReferrer").find('a[rel]').each( (idx,ele) => {var newAtt = ele.getAttribute("rel").split(" ").filter( x => (x != 'noreferrer') ).join(" "); ele.setAttribute("rel", newAtt)});
 
-
-
 */
-
-
 
 function initializeKundry () {  // initialization function 
   if ( typeof mw != "undefined" && mw.config.get ('wgNamespaceNumber') != -1) {    // if mw is defined (by Mediawiki) and we are not in special namespace
@@ -707,18 +778,10 @@ function initializeKundry () {  // initialization function
   else {}
 }
 
-
-
 $(document).ready ( initializeKundry );
-//initializeKundry();
-
-
-
-
-
 
 window.openKundryWindow = openKundryWindow;
-window.hoverKundy = hoverKundry;
+
 
 })(); // END SCOPE PROTECTION
 
